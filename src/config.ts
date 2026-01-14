@@ -1,0 +1,13 @@
+export interface Config {
+  promptFile: string;
+  progressFile: string;
+  maxIterations: number;
+  skipConfirm: boolean;
+}
+
+export const EXIT_CODES = {
+  SUCCESS: 0,
+  BLOCKED: 1,
+  MAX_ITERATIONS: 2,
+  INTERRUPTED: 130,
+} as const;
