@@ -93,7 +93,7 @@ async function checkStatus(
 async function runClaude(prompt: string): Promise<void> {
   const subprocess = execa(
     'claude',
-    ['--print', '--output-format', 'stream-json'],
+    ['--print', '--verbose', '--output-format', 'stream-json'],
     {
       input: prompt,
       stdout: 'pipe',
