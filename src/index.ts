@@ -6,6 +6,7 @@ import { program } from 'commander';
 import which from 'which';
 import type { Config } from './config.js';
 import { exists } from './fs.js';
+import { runInit } from './init.js';
 import { run } from './loop.js';
 
 const confirm = (msg: string): Promise<boolean> =>
@@ -56,6 +57,16 @@ program
     }
 
     process.exit(await run(config));
+  });
+
+program
+  .command('init')
+  .description('Generate a PROMPT.md file through conversation with Claude')
+  .argument('<prompt>', 'Initial description of your task')
+  .option('-o, --output <file>', 'Output file path', 'PROMPT.md')
+  .option('--force', 'Overwrite existing file')
+  .action(async (prompt: string, opts: { output: string; force?: boolean }) => {
+    await runInit(prompt, opts);
   });
 
 program.parse();

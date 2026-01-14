@@ -27,28 +27,28 @@ npm link
 ## Quick Start
 
 ```bash
-# 1. Create your task prompt
-cp PROMPT.md.example PROMPT.md
-# Edit PROMPT.md with your task
+# 1. Generate your task prompt (Claude will ask clarifying questions)
+ralph init "Build a REST API for user management"
 
 # 2. Run the loop
 ralph
-# Or if not linked globally:
-node dist/index.js
 ```
 
 ## Usage
 
 ```
-ralph [OPTIONS]
+ralph init <prompt>     Generate PROMPT.md through conversation with Claude
+ralph [options]         Run the loop
 
-Options:
-  -V, --version             output the version number
+Init options:
+  -o, --output <file>       Output file path (default: "PROMPT.md")
+  --force                   Overwrite existing file
+
+Loop options:
   -p, --prompt <file>       Path to prompt file (default: "PROMPT.md")
   -d, --progress <file>     Progress file path (default: "progress.md")
   -m, --max-iterations <n>  Maximum iterations (default: "10")
   -y, --yes                 Skip confirmation prompt
-  -h, --help                display help for command
 ```
 
 ## How It Works
