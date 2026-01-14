@@ -1,0 +1,29 @@
+# Progress Tracking
+
+## Status: IN_PROGRESS
+
+<!-- Change to one of: IN_PROGRESS | DONE | BLOCKED -->
+
+## Completed
+
+- [x] Initial setup
+- [x] [What was accomplished in iteration 1]
+- [x] [What was accomplished in iteration 2]
+
+## Current Focus
+
+Working on: [What the current/next iteration should focus on]
+
+## Remaining
+
+- [ ] [Remaining task 1]
+- [ ] [Remaining task 2]
+- [ ] [Final verification]
+
+## Notes
+
+[Any important observations, decisions made, or context for future iterations]
+
+## Blockers (if any)
+
+[If Status is BLOCKED, explain what's blocking progress and what help is needed]

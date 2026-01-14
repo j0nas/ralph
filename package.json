@@ -1,0 +1,36 @@
+{
+  "name": "ralph",
+  "version": "1.0.0",
+  "description": "Claude Code in a loop with fresh context per iteration",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "ralph": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "ai",
+    "automation",
+    "cli"
+  ],
+  "author": "Jonas Jensen <jonas.jensen@msn.com>",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "5.6.2",
+    "commander": "14.0.2",
+    "execa": "9.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.8",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
