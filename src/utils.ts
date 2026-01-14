@@ -1,6 +1,6 @@
+import { constants } from 'node:fs';
+import { access, readFile } from 'node:fs/promises';
 import chalk from 'chalk';
-import { readFile, access } from 'fs/promises';
-import { constants } from 'fs';
 
 // Box drawing characters for banner
 export const box = {
@@ -18,8 +18,16 @@ export function printBanner(): void {
   const horizontalLine = box.horizontal.repeat(width);
 
   console.log(chalk.blue(`${box.topLeft}${horizontalLine}${box.topRight}`));
-  console.log(chalk.blue(box.vertical) + '  ' + chalk.green('Ralph') + ' - Claude Code in a Loop'.padEnd(width - 2) + chalk.blue(box.vertical));
-  console.log(chalk.blue(`${box.bottomLeft}${horizontalLine}${box.bottomRight}`));
+  console.log(
+    chalk.blue(box.vertical) +
+      '  ' +
+      chalk.green('Ralph') +
+      ' - Claude Code in a Loop'.padEnd(width - 2) +
+      chalk.blue(box.vertical),
+  );
+  console.log(
+    chalk.blue(`${box.bottomLeft}${horizontalLine}${box.bottomRight}`),
+  );
 }
 
 export function printConfig(config: {
@@ -31,8 +39,10 @@ export function printConfig(config: {
   console.log('');
   console.log(`Prompt file:     ${chalk.green(config.promptFile)}`);
   console.log(`Progress file:   ${chalk.green(config.progressFile)}`);
-  console.log(`Max iterations:  ${chalk.green(config.maxIterations.toString())}`);
-  console.log(`Cooldown:        ${chalk.green(config.cooldown + 's')}`);
+  console.log(
+    `Max iterations:  ${chalk.green(config.maxIterations.toString())}`,
+  );
+  console.log(`Cooldown:        ${chalk.green(`${config.cooldown}s`)}`);
   console.log('');
 }
 

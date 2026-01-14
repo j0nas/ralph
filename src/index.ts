@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { program } from 'commander';
-import { createInterface } from 'readline';
+import { createInterface } from 'node:readline';
 import chalk from 'chalk';
-import { runLoop, RalphConfig, EXIT_CODES } from './ralph.js';
+import { program } from 'commander';
+import { type RalphConfig, runLoop } from './ralph.js';
 import { fileExists } from './utils.js';
 
 async function promptConfirm(message: string): Promise<boolean> {
@@ -26,7 +26,11 @@ async function checkPrereqs(promptFile: string): Promise<void> {
   try {
     execaSync('which', ['claude']);
   } catch {
-    console.error(chalk.red("Error: 'claude' command not found. Install Claude Code first."));
+    console.error(
+      chalk.red(
+        "Error: 'claude' command not found. Install Claude Code first.",
+      ),
+    );
     process.exit(1);
   }
 

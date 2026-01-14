@@ -1,15 +1,15 @@
-import { execa } from 'execa';
-import { setTimeout } from 'timers/promises';
+import { setTimeout } from 'node:timers/promises';
 import chalk from 'chalk';
+import { execa } from 'execa';
 import {
   fileExists,
-  readFileContent,
   printBanner,
   printConfig,
+  printError,
   printIterationHeader,
   printSuccess,
   printWarning,
-  printError,
+  readFileContent,
 } from './utils.js';
 
 export interface RalphConfig {
@@ -48,7 +48,9 @@ async function buildPrompt(config: RalphConfig): Promise<string> {
   return prompt;
 }
 
-async function checkStatus(config: RalphConfig): Promise<'done' | 'blocked' | 'continue'> {
+async function checkStatus(
+  config: RalphConfig,
+): Promise<'done' | 'blocked' | 'continue'> {
   if (!(await fileExists(config.progressFile))) {
     return 'continue';
   }
@@ -108,7 +110,9 @@ export async function runLoop(config: RalphConfig): Promise<number> {
       const status = await checkStatus(config);
 
       if (status === 'done') {
-        printSuccess(`Task completed successfully after ${iteration} iteration(s)!`);
+        printSuccess(
+          `Task completed successfully after ${iteration} iteration(s)!`,
+        );
         return EXIT_CODES.SUCCESS;
       }
 
@@ -121,13 +125,19 @@ export async function runLoop(config: RalphConfig): Promise<number> {
       // Cooldown before next iteration (skip on last iteration)
       if (iteration < config.maxIterations) {
         console.log('');
-        console.log(chalk.yellow(`Cooling down for ${config.cooldown}s before next iteration...`));
+        console.log(
+          chalk.yellow(
+            `Cooling down for ${config.cooldown}s before next iteration...`,
+          ),
+        );
         await setTimeout(config.cooldown * 1000);
       }
     }
 
     // Max iterations reached
-    printError(`Max iterations (${config.maxIterations}) reached without completion`);
+    printError(
+      `Max iterations (${config.maxIterations}) reached without completion`,
+    );
     printError(`Check ${config.progressFile} to see current progress`);
     return EXIT_CODES.MAX_ITERATIONS;
   } finally {

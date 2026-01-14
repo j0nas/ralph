@@ -10,7 +10,15 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "lint": "biome check src/",
+    "lint:fix": "biome check --write src/",
+    "format": "biome format --write src/",
+    "format:check": "biome format src/",
+    "prepublishOnly": "npm run build",
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx biome check --staged --no-errors-on-unmatched"
   },
   "keywords": [
     "claude",
@@ -27,7 +35,9 @@
     "execa": "9.6.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.3.11",
     "@types/node": "24.10.8",
+    "simple-git-hooks": "2.13.1",
     "typescript": "5.9.3"
   },
   "engines": {
