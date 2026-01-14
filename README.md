@@ -47,7 +47,6 @@ Options:
   -p, --prompt <file>       Path to prompt file (default: "PROMPT.md")
   -d, --progress <file>     Progress file path (default: "progress.md")
   -m, --max-iterations <n>  Maximum iterations (default: "10")
-  -c, --cooldown <secs>     Seconds between iterations (default: "5")
   -y, --yes                 Skip confirmation prompt
   -h, --help                display help for command
 ```

@@ -1,4 +1,3 @@
-import { setTimeout } from 'node:timers/promises';
 import chalk from 'chalk';
 import { execa } from 'execa';
 import {
@@ -16,7 +15,6 @@ export interface RalphConfig {
   promptFile: string;
   progressFile: string;
   maxIterations: number;
-  cooldown: number;
   skipConfirm: boolean;
 }
 
@@ -120,17 +118,6 @@ export async function runLoop(config: RalphConfig): Promise<number> {
         printWarning('Task blocked - human intervention needed');
         printWarning(`Check ${config.progressFile} for details`);
         return EXIT_CODES.BLOCKED;
-      }
-
-      // Cooldown before next iteration (skip on last iteration)
-      if (iteration < config.maxIterations) {
-        console.log('');
-        console.log(
-          chalk.yellow(
-            `Cooling down for ${config.cooldown}s before next iteration...`,
-          ),
-        );
-        await setTimeout(config.cooldown * 1000);
       }
     }
 

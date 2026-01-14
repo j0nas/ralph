@@ -34,7 +34,6 @@ export function printConfig(config: {
   promptFile: string;
   progressFile: string;
   maxIterations: number;
-  cooldown: number;
 }): void {
   console.log('');
   console.log(`Prompt file:     ${chalk.green(config.promptFile)}`);
@@ -42,7 +41,6 @@ export function printConfig(config: {
   console.log(
     `Max iterations:  ${chalk.green(config.maxIterations.toString())}`,
   );
-  console.log(`Cooldown:        ${chalk.green(`${config.cooldown}s`)}`);
   console.log('');
 }
 

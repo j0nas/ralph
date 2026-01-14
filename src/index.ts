@@ -49,14 +49,12 @@ program
   .option('-p, --prompt <file>', 'Path to prompt file', 'PROMPT.md')
   .option('-d, --progress <file>', 'Progress file path', 'progress.md')
   .option('-m, --max-iterations <n>', 'Maximum iterations', '10')
-  .option('-c, --cooldown <secs>', 'Seconds between iterations', '5')
   .option('-y, --yes', 'Skip confirmation prompt', false)
   .action(async (options) => {
     const config: RalphConfig = {
       promptFile: options.prompt,
       progressFile: options.progress,
       maxIterations: parseInt(options.maxIterations, 10),
-      cooldown: parseInt(options.cooldown, 10),
       skipConfirm: options.yes,
     };
 
