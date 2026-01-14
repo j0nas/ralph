@@ -18,6 +18,8 @@ export interface IterateOptions {
 function buildSystemPrompt(initialPrompt: string, outputPath: string): string {
   return `You are helping create a PROMPT.md file for Ralph, a tool that runs Claude Code in iterative loops with fresh context per iteration.
 
+Working directory: ${process.cwd()}
+
 <user_goal>
 ${initialPrompt}
 </user_goal>
@@ -78,6 +80,8 @@ function buildIterateSystemPrompt(
   outputPath: string,
 ): string {
   return `You are helping refine and improve an existing PROMPT.md file for Ralph, a tool that runs Claude Code in iterative loops with fresh context per iteration.
+
+Working directory: ${process.cwd()}
 
 <current_prompt>
 ${currentContent}

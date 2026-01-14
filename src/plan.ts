@@ -13,6 +13,8 @@ export interface PlanOptions {
 function buildSystemPrompt(task: string, outputPath: string): string {
   return `You are breaking down a task into bite-sized steps for Ralph, a tool that runs Claude Code in iterative loops with fresh context per iteration.
 
+Working directory: ${process.cwd()}
+
 <task>
 ${task}
 </task>
