@@ -8,6 +8,7 @@ import type { Config } from './config.js';
 import { exists } from './fs.js';
 import { runInit } from './init.js';
 import { run } from './loop.js';
+import { runPlan } from './plan.js';
 
 const confirm = (msg: string): Promise<boolean> =>
   new Promise((resolve) => {
@@ -67,6 +68,16 @@ program
   .option('--force', 'Overwrite existing file')
   .action(async (prompt: string, opts: { output: string; force?: boolean }) => {
     await runInit(prompt, opts);
+  });
+
+program
+  .command('plan')
+  .description('Break down PROMPT.md into tasks in progress.md')
+  .option('-p, --prompt <file>', 'Prompt file to read', 'PROMPT.md')
+  .option('-o, --output <file>', 'Output file path', 'progress.md')
+  .option('--force', 'Overwrite existing file')
+  .action(async (opts: { prompt: string; output: string; force?: boolean }) => {
+    await runPlan(opts);
   });
 
 program.parse();

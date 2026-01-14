@@ -30,7 +30,10 @@ npm link
 # 1. Generate your task prompt (Claude will ask clarifying questions)
 ralph init "Build a REST API for user management"
 
-# 2. Run the loop
+# 2. Break down into tasks (Claude analyzes PROMPT.md)
+ralph plan
+
+# 3. Run the loop
 ralph
 ```
 
@@ -38,10 +41,16 @@ ralph
 
 ```
 ralph init <prompt>     Generate PROMPT.md through conversation with Claude
+ralph plan              Break down PROMPT.md into tasks in progress.md
 ralph [options]         Run the loop
 
 Init options:
   -o, --output <file>       Output file path (default: "PROMPT.md")
+  --force                   Overwrite existing file
+
+Plan options:
+  -p, --prompt <file>       Prompt file to read (default: "PROMPT.md")
+  -o, --output <file>       Output file path (default: "progress.md")
   --force                   Overwrite existing file
 
 Loop options:
