@@ -92,8 +92,14 @@ export async function runInit(
 
   console.log(chalk.cyan(`\nGenerating ${options.output}...\n`));
 
-  // Spawn interactive claude session
-  await execa('claude', ['--system-prompt', systemPrompt], {
-    stdio: 'inherit',
-  });
+  // Spawn interactive claude session with initial message
+  await execa(
+    'claude',
+    [
+      '--system-prompt',
+      systemPrompt,
+      'Begin by asking clarifying questions about my goal.',
+    ],
+    { stdio: 'inherit' },
+  );
 }
