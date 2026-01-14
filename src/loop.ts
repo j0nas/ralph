@@ -91,61 +91,10 @@ async function checkStatus(
 }
 
 async function runClaude(prompt: string): Promise<void> {
-  const subprocess = execa(
-    'claude',
-    [
-      '--print',
-      '--verbose',
-      '--output-format',
-      'stream-json',
-      '--include-partial-messages',
-    ],
-    {
-      input: prompt,
-      stdout: 'pipe',
-      stderr: 'inherit',
-    },
-  );
-
-  // Process streaming JSON output in real-time
-  if (subprocess.stdout) {
-    let buffer = '';
-    let lastTextLength = 0;
-
-    subprocess.stdout.on('data', (chunk: Buffer) => {
-      buffer += chunk.toString();
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const event = JSON.parse(line) as {
-            type: string;
-            message?: { content?: { type: string; text?: string }[] };
-          };
-          // Extract and display text from assistant messages
-          if (event.type === 'assistant' && event.message?.content) {
-            for (const block of event.message.content) {
-              if (block.type === 'text' && block.text) {
-                // Only print the new characters since last update
-                const newText = block.text.slice(lastTextLength);
-                if (newText) {
-                  process.stdout.write(newText);
-                  lastTextLength = block.text.length;
-                }
-              }
-            }
-          }
-        } catch {
-          // Ignore JSON parse errors for incomplete or malformed lines
-        }
-      }
-    });
-  }
-
-  await subprocess;
-  console.log();
+  await execa('claude', ['--print'], {
+    input: prompt,
+    stdio: ['pipe', 'inherit', 'inherit'],
+  });
 }
 
 export async function run(config: Config): Promise<number> {

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { unlink } from 'node:fs/promises';
 import chalk from 'chalk';
 import { program } from 'commander';
 import which from 'which';
@@ -114,6 +115,44 @@ program
   .option('-f, --force', 'Overwrite existing file')
   .action(async (opts: { prompt: string; output: string; force?: boolean }) => {
     await runPlan(opts);
+  });
+
+program
+  .command('clear')
+  .description('Delete PROMPT.md and progress.md to reset Ralph loop state')
+  .option('-p, --prompt <file>', 'Prompt file to delete', 'PROMPT.md')
+  .option('-d, --progress <file>', 'Progress file to delete', 'progress.md')
+  .action(async (_opts, cmd) => {
+    const opts = cmd.optsWithGlobals() as { prompt: string; progress: string };
+    const deleted: string[] = [];
+    const missing: string[] = [];
+
+    // Delete prompt file
+    if (await exists(opts.prompt)) {
+      await unlink(opts.prompt);
+      deleted.push(opts.prompt);
+    } else {
+      missing.push(opts.prompt);
+    }
+
+    // Delete progress file
+    if (await exists(opts.progress)) {
+      await unlink(opts.progress);
+      deleted.push(opts.progress);
+    } else {
+      missing.push(opts.progress);
+    }
+
+    // Print feedback
+    if (deleted.length > 0) {
+      console.log(chalk.green(`Deleted: ${deleted.join(', ')}`));
+    }
+    if (missing.length > 0) {
+      console.log(chalk.dim(`Already missing: ${missing.join(', ')}`));
+    }
+    if (deleted.length === 0 && missing.length > 0) {
+      console.log(chalk.yellow('Nothing to clear.'));
+    }
   });
 
 program.parse();
