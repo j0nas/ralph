@@ -2,7 +2,6 @@ export interface Config {
   promptFile: string;
   progressFile: string;
   maxIterations: number;
-  skipConfirm: boolean;
 }
 
 export const EXIT_CODES = {
