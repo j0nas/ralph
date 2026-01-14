@@ -91,10 +91,50 @@ async function checkStatus(
 }
 
 async function runClaude(prompt: string): Promise<void> {
-  await execa('claude', ['--print'], {
-    input: prompt,
-    stdio: ['pipe', 'inherit', 'inherit'],
-  });
+  const subprocess = execa(
+    'claude',
+    ['--print', '--output-format', 'stream-json'],
+    {
+      input: prompt,
+      stdout: 'pipe',
+      stderr: 'inherit',
+    },
+  );
+
+  // Process streaming JSON output in real-time
+  if (subprocess.stdout) {
+    let buffer = '';
+    subprocess.stdout.on('data', (chunk: Buffer) => {
+      buffer += chunk.toString();
+      const lines = buffer.split('\n');
+      // Keep the last incomplete line in the buffer
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const event = JSON.parse(line) as {
+            type: string;
+            content?: { type: string; text?: string }[];
+          };
+          // Extract and display text from assistant messages
+          if (event.type === 'assistant' && event.content) {
+            for (const block of event.content) {
+              if (block.type === 'text' && block.text) {
+                process.stdout.write(block.text);
+              }
+            }
+          }
+        } catch {
+          // Ignore JSON parse errors for incomplete or malformed lines
+        }
+      }
+    });
+  }
+
+  await subprocess;
+  // Ensure we end with a newline
+  console.log();
 }
 
 export async function run(config: Config): Promise<number> {

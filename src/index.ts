@@ -65,7 +65,7 @@ program
   .description('Generate a PROMPT.md file through conversation with Claude')
   .argument('[prompt]', 'Initial description of your task')
   .option('-o, --output <file>', 'Output file path', 'PROMPT.md')
-  .option('--force', 'Overwrite existing file')
+  .option('-f, --force', 'Overwrite existing file')
   .option(
     '-i, --iterate',
     'Refine an existing PROMPT.md by analyzing gaps and asking clarifying questions',
@@ -131,7 +131,7 @@ program
   .description('Break down PROMPT.md into tasks in progress.md')
   .option('-p, --prompt <file>', 'Prompt file to read', 'PROMPT.md')
   .option('-o, --output <file>', 'Output file path', 'progress.md')
-  .option('--force', 'Overwrite existing file')
+  .option('-f, --force', 'Overwrite existing file')
   .action(async (opts: { prompt: string; output: string; force?: boolean }) => {
     await runPlan(opts);
   });
