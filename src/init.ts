@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, unlink } from 'node:fs/promises';
 import chalk from 'chalk';
 import { execa } from 'execa';
 import which from 'which';
@@ -142,6 +142,11 @@ export async function runInit(
       ),
     );
     process.exit(1);
+  }
+
+  // Delete output file if --force and file exists (so Claude starts fresh)
+  if (options.force && (await exists(options.output))) {
+    await unlink(options.output);
   }
 
   const systemPrompt = buildSystemPrompt(initialPrompt, options.output);

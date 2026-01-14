@@ -93,7 +93,13 @@ async function checkStatus(
 async function runClaude(prompt: string): Promise<void> {
   const subprocess = execa(
     'claude',
-    ['--print', '--verbose', '--output-format', 'stream-json'],
+    [
+      '--print',
+      '--verbose',
+      '--output-format',
+      'stream-json',
+      '--include-partial-messages',
+    ],
     {
       input: prompt,
       stdout: 'pipe',
@@ -104,10 +110,11 @@ async function runClaude(prompt: string): Promise<void> {
   // Process streaming JSON output in real-time
   if (subprocess.stdout) {
     let buffer = '';
+    let lastTextLength = 0;
+
     subprocess.stdout.on('data', (chunk: Buffer) => {
       buffer += chunk.toString();
       const lines = buffer.split('\n');
-      // Keep the last incomplete line in the buffer
       buffer = lines.pop() ?? '';
 
       for (const line of lines) {
@@ -115,13 +122,18 @@ async function runClaude(prompt: string): Promise<void> {
         try {
           const event = JSON.parse(line) as {
             type: string;
-            content?: { type: string; text?: string }[];
+            message?: { content?: { type: string; text?: string }[] };
           };
           // Extract and display text from assistant messages
-          if (event.type === 'assistant' && event.content) {
-            for (const block of event.content) {
+          if (event.type === 'assistant' && event.message?.content) {
+            for (const block of event.message.content) {
               if (block.type === 'text' && block.text) {
-                process.stdout.write(block.text);
+                // Only print the new characters since last update
+                const newText = block.text.slice(lastTextLength);
+                if (newText) {
+                  process.stdout.write(newText);
+                  lastTextLength = block.text.length;
+                }
               }
             }
           }
@@ -133,7 +145,6 @@ async function runClaude(prompt: string): Promise<void> {
   }
 
   await subprocess;
-  // Ensure we end with a newline
   console.log();
 }
 
