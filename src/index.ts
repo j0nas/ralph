@@ -29,7 +29,7 @@ program
   .version('1.0.0')
   .option('-p, --prompt <file>', 'Prompt file', 'PROMPT.md')
   .option('-d, --progress <file>', 'Progress file', 'progress.md')
-  .option('-m, --max-iterations <n>', 'Max iterations', '10')
+  .option('-m, --max-iterations <n>', 'Max iterations', '50')
   .action(async (opts) => {
     const config: Config = {
       promptFile: opts.prompt,

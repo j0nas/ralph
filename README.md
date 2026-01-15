@@ -58,7 +58,7 @@ Plan options:
 Loop options:
   -p, --prompt <file>       Path to prompt file (default: "PROMPT.md")
   -d, --progress <file>     Progress file path (default: "progress.md")
-  -m, --max-iterations <n>  Maximum iterations (default: "10")
+  -m, --max-iterations <n>  Maximum iterations (default: "50")
   -y, --yes                 Skip confirmation prompt
 ```
 
