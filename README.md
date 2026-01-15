@@ -47,8 +47,7 @@ ralph [options]         Run the loop
 Init options:
   -o, --output <file>       Output file path (default: "PROMPT.md")
   -f, --force               Overwrite existing file
-  -i, --iterate             Refine an existing PROMPT.md by asking clarifying questions
-  -n, --count <number>      Number of refinement passes (default: 1, use with --iterate)
+  -i, --iterate [count]     Refine an existing PROMPT.md (default: 1 pass)
 
 Plan options:
   -p, --prompt <file>       Prompt file to read (default: "PROMPT.md")
@@ -101,7 +100,7 @@ Use `--iterate` to improve an existing PROMPT.md through multiple refinement pas
 ralph init --iterate
 
 # Multiple refinement passes
-ralph init --iterate -n 3
+ralph init --iterate 3
 ```
 
 Each pass spawns an interactive Claude session that analyzes gaps, ambiguities, and specificity issues in your prompt, then asks clarifying questions to improve it.

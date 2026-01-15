@@ -48,13 +48,8 @@ program
   .option('-o, --output <file>', 'Output file path', 'PROMPT.md')
   .option('-f, --force', 'Overwrite existing file')
   .option(
-    '-i, --iterate',
-    'Refine an existing PROMPT.md by analyzing gaps and asking clarifying questions',
-  )
-  .option(
-    '-n, --count <number>',
-    'Number of iteration passes to run (use with --iterate)',
-    '1',
+    '-i, --iterate [count]',
+    'Refine an existing PROMPT.md (optionally specify number of passes, default: 1)',
   )
   .action(
     async (
@@ -62,8 +57,7 @@ program
       opts: {
         output: string;
         force?: boolean;
-        iterate?: boolean;
-        count: string;
+        iterate?: boolean | string;
       },
     ) => {
       if (opts.iterate) {
@@ -88,10 +82,13 @@ program
           await runInit(prompt, { output: opts.output, force: opts.force });
         }
         // Now run the iterate refinement
+        // opts.iterate is true (flag only) or a string (with count)
+        const count =
+          typeof opts.iterate === 'string' ? parseInt(opts.iterate, 10) : 1;
         await runIterate({
           output: opts.output,
           force: opts.force,
-          count: parseInt(opts.count, 10),
+          count,
         });
       } else {
         // Standard init flow - prompt is required
