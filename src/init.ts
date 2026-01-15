@@ -210,6 +210,7 @@ export async function runIterate(options: IterateOptions): Promise<void> {
     }
 
     // Spawn interactive claude session
+    // Use reject: false so non-zero exit codes don't break the loop
     await execa(
       'claude',
       [
@@ -217,7 +218,7 @@ export async function runIterate(options: IterateOptions): Promise<void> {
         systemPrompt,
         'Analyze the current PROMPT.md and ask clarifying questions to help improve it.',
       ],
-      { stdio: 'inherit' },
+      { stdio: 'inherit', reject: false },
     );
   }
 }
