@@ -94,14 +94,9 @@ export async function runPlan(options: PlanOptions): Promise<void> {
     chalk.cyan(`\nGenerating ${options.output} from ${options.prompt}...\n`),
   );
 
-  // Spawn interactive claude session with initial message
-  await execa(
-    'claude',
-    [
-      '--system-prompt',
-      systemPrompt,
-      'Analyze the task and generate the progress.md file.',
-    ],
-    { stdio: 'inherit' },
-  );
+  // Run Claude in print mode - no user interaction needed
+  await execa('claude', ['--print', '--system-prompt', systemPrompt], {
+    input: 'Analyze the task and generate the progress.md file.',
+    stdio: ['pipe', 'inherit', 'inherit'],
+  });
 }

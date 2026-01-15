@@ -44,7 +44,9 @@ async function buildPrompt(config: Config): Promise<string> {
     ? await readFile(config.progressFile, 'utf-8')
     : null;
 
-  return `<task>
+  return `Working directory: ${process.cwd()}
+
+<task>
 ${task}
 </task>
 
