@@ -65,19 +65,31 @@ ${progress}
 </context>
 
 <instructions>
-Work autonomously and make meaningful progress each iteration. Before finishing:
+Each iteration should complete ONE meaningful unit of work, then exit. This keeps context fresh and ensures progress is always recorded.
 
-1. Update \`${config.progressFile}\` with your progress using this structure:
-   - **Completed**: What you accomplished this iteration
-   - **Remaining**: Concrete next steps for future iterations
-   - **Status**: One of IN_PROGRESS, DONE, or BLOCKED
+A meaningful unit of work might be:
+- Setting up a configuration file
+- Installing and configuring dependencies
+- Implementing a single function or module
+- Writing tests for one component
+- Fixing a specific bug
 
-2. Set the status header to signal completion:
-   - \`## Status: DONE\` when the task is fully complete and verified
-   - \`## Status: BLOCKED\` when you need human input to proceed
-   - \`## Status: IN_PROGRESS\` otherwise (default)
+Workflow for each iteration:
+1. Read progress.md to understand current state
+2. Pick the next task from Remaining
+3. Complete that ONE task
+4. Update \`${config.progressFile}\`:
+   - Move the task to **Completed**
+   - Update **Remaining** with next steps
+   - Set **Status**: IN_PROGRESS, DONE, or BLOCKED
+5. Exit (the loop will start a fresh iteration)
 
-Updating progress is critical because future iterations rely on this file to understand state. Be specific about what was done and what remains.
+Status meanings:
+- \`## Status: DONE\` - Task fully complete and verified
+- \`## Status: BLOCKED\` - Need human input to proceed
+- \`## Status: IN_PROGRESS\` - More work remains (default)
+
+Do NOT try to complete multiple tasks in one iteration. Fresh context per iteration is the whole point.
 </instructions>`;
 }
 
@@ -93,10 +105,40 @@ async function checkStatus(
 }
 
 async function runClaude(prompt: string): Promise<void> {
-  await execa('claude', ['--print'], {
-    input: prompt,
-    stdio: ['pipe', 'inherit', 'inherit'],
-  });
+  const child = execa(
+    'claude',
+    ['--print', '--output-format', 'stream-json', '--verbose'],
+    {
+      input: prompt,
+      stdout: 'pipe',
+      stderr: 'inherit',
+    },
+  );
+
+  // Stream and parse JSON output to show Claude's responses
+  if (child.stdout) {
+    const rl = await import('node:readline');
+    const reader = rl.createInterface({ input: child.stdout });
+
+    for await (const line of reader) {
+      try {
+        const event = JSON.parse(line);
+        // Show assistant text messages
+        if (event.type === 'assistant' && event.message?.content) {
+          for (const block of event.message.content) {
+            if (block.type === 'text' && block.text) {
+              process.stdout.write(block.text);
+            }
+          }
+        }
+      } catch {
+        // Ignore JSON parse errors
+      }
+    }
+  }
+
+  await child;
+  console.log(); // Newline after Claude's output
 }
 
 export async function run(config: Config): Promise<number> {
