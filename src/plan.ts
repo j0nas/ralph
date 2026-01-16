@@ -69,6 +69,7 @@ export async function runPlan(options: PlanOptions): Promise<void> {
   // Check prompt file exists
   if (!(await exists(options.prompt))) {
     console.error(chalk.red(`Error: '${options.prompt}' not found.`));
+    console.error(chalk.yellow(`Run 'ralph init' first to create it.`));
     process.exit(1);
   }
 

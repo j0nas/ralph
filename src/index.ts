@@ -10,7 +10,10 @@ import { runInit, runIterate } from './init.js';
 import { run } from './loop.js';
 import { runPlan } from './plan.js';
 
-async function checkPrereqs(promptFile: string): Promise<void> {
+async function checkPrereqs(
+  promptFile: string,
+  progressFile: string,
+): Promise<void> {
   if (!which.sync('claude', { nothrow: true })) {
     console.error(
       chalk.red("Error: 'claude' not found. Install Claude Code first."),
@@ -19,6 +22,12 @@ async function checkPrereqs(promptFile: string): Promise<void> {
   }
   if (!(await exists(promptFile))) {
     console.error(chalk.red(`Error: '${promptFile}' not found.`));
+    console.error(chalk.yellow(`Run 'ralph init' first to create it.`));
+    process.exit(1);
+  }
+  if (!(await exists(progressFile))) {
+    console.error(chalk.red(`Error: '${progressFile}' not found.`));
+    console.error(chalk.yellow(`Run 'ralph plan' first to create it.`));
     process.exit(1);
   }
 }
@@ -37,7 +46,7 @@ program
       maxIterations: parseInt(opts.maxIterations, 10),
     };
 
-    await checkPrereqs(config.promptFile);
+    await checkPrereqs(config.promptFile, config.progressFile);
     process.exit(await run(config));
   });
 
