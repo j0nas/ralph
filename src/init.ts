@@ -87,6 +87,8 @@ Working directory: ${process.cwd()}
 ${currentContent}
 </current_prompt>
 
+IMPORTANT: The current PROMPT.md content is provided above. Do NOT read the file - use the content provided in <current_prompt> directly. Start by analyzing it and asking clarifying questions.
+
 <your_task>
 1. Analyze the existing PROMPT.md above and identify:
    - Gaps: What information is missing that Claude would need?
