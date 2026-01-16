@@ -1,4 +1,4 @@
-import { readFile, unlink } from 'node:fs/promises';
+import { unlink } from 'node:fs/promises';
 import chalk from 'chalk';
 import { execa } from 'execa';
 import which from 'which';
@@ -10,14 +10,10 @@ export interface PlanOptions {
   force?: boolean;
 }
 
-function buildSystemPrompt(task: string, outputPath: string): string {
+function buildSystemPrompt(outputPath: string): string {
   return `You are breaking down a task into bite-sized steps for Ralph, a tool that runs Claude Code in iterative loops with fresh context per iteration.
 
 Working directory: ${process.cwd()}
-
-<task>
-${task}
-</task>
 
 <your_task>
 Analyze the task and generate a progress.md file with concrete, actionable steps.
@@ -90,8 +86,7 @@ export async function runPlan(options: PlanOptions): Promise<void> {
     await unlink(options.output);
   }
 
-  const task = await readFile(options.prompt, 'utf-8');
-  const systemPrompt = buildSystemPrompt(task, options.output);
+  const systemPrompt = buildSystemPrompt(options.output);
 
   console.log(
     chalk.cyan(`\nGenerating ${options.output} from ${options.prompt}...\n`),
@@ -99,7 +94,7 @@ export async function runPlan(options: PlanOptions): Promise<void> {
 
   // Run Claude in print mode - no user interaction needed
   await execa('claude', ['--print', '--system-prompt', systemPrompt], {
-    input: 'Analyze the task and generate the progress.md file.',
+    input: `Analyze @${options.prompt} and generate the progress.md file.`,
     stdio: ['pipe', 'inherit', 'inherit'],
   });
 }
