@@ -1,4 +1,4 @@
-import { readFile, unlink } from 'node:fs/promises';
+import { unlink } from 'node:fs/promises';
 import chalk from 'chalk';
 import { execa } from 'execa';
 import which from 'which';
@@ -75,34 +75,25 @@ The task is complete when ALL of these are true:
 Write the file to: ${outputPath}`;
 }
 
-function buildIterateSystemPrompt(
-  currentContent: string,
-  outputPath: string,
-): string {
+function buildIterateSystemPrompt(outputPath: string): string {
   return `You are helping refine and improve an existing PROMPT.md file for Ralph, a tool that runs Claude Code in iterative loops with fresh context per iteration.
 
 Working directory: ${process.cwd()}
 
-<current_prompt>
-${currentContent}
-</current_prompt>
-
-IMPORTANT: The current PROMPT.md content is provided above. Do NOT read the file - use the content provided in <current_prompt> directly. Start by analyzing it and asking clarifying questions.
-
 <your_task>
-1. Analyze the existing PROMPT.md above and identify:
+1. Analyze the PROMPT.md and identify:
    - Gaps: What information is missing that Claude would need?
    - Ambiguities: What parts are unclear or could be interpreted multiple ways?
    - Specificity issues: What could be more concrete or actionable?
    - Success criteria gaps: Are the criteria measurable and verifiable?
 
-2. Ask 2-4 focused clarifying questions using AskUserQuestion to gather the missing information. Focus on:
+2. Ask 2-4 focused clarifying questions to gather missing information. Focus on:
    - Unclear requirements that need specifics
    - Missing technical context
    - Ambiguous success criteria
    - Edge cases or constraints not mentioned
 
-3. Rewrite the PROMPT.md file incorporating the user's answers. The improved version should:
+3. Rewrite the PROMPT.md incorporating the user's answers. The improved version should:
    - Be more specific and explicit
    - Have clearer, more measurable success criteria
    - Include any missing context or constraints
@@ -193,13 +184,7 @@ export async function runIterate(options: IterateOptions): Promise<void> {
       process.exit(1);
     }
 
-    // Read current content
-    const currentContent = await readFile(options.output, 'utf-8');
-
-    const systemPrompt = buildIterateSystemPrompt(
-      currentContent,
-      options.output,
-    );
+    const systemPrompt = buildIterateSystemPrompt(options.output);
 
     if (count > 1) {
       console.log(
@@ -218,7 +203,7 @@ export async function runIterate(options: IterateOptions): Promise<void> {
       [
         '--system-prompt',
         systemPrompt,
-        'Analyze the current PROMPT.md and ask clarifying questions to help improve it.',
+        `Analyze @${options.output} and ask clarifying questions to help improve it.`,
       ],
       { stdio: 'inherit', reject: false },
     );
