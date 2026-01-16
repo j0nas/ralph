@@ -24,6 +24,8 @@ Analyze the task and generate a progress.md file with concrete, actionable steps
 
 # Progress Tracking
 
+> **📋 Full Task Specification:** See @PROMPT.md for complete requirements and success criteria.
+
 ## Status: IN_PROGRESS
 
 ## Completed
