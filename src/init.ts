@@ -189,12 +189,15 @@ export async function runIterate(options: IterateOptions): Promise<void> {
     if (count > 1) {
       console.log(
         chalk.cyan(
-          `\nIteration ${i + 1}/${count}: Refining ${options.output}...\n`,
+          `\nIteration ${i + 1}/${count}: Refining ${options.output}...`,
         ),
       );
     } else {
-      console.log(chalk.cyan(`\nRefining ${options.output}...\n`));
+      console.log(chalk.cyan(`\nRefining ${options.output}...`));
     }
+    console.log(
+      chalk.dim('Type /exit when done to continue, or Ctrl+C to abort\n'),
+    );
 
     // Spawn interactive claude session
     // Use reject: false so non-zero exit codes don't break the loop
