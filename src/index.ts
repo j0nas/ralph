@@ -3,10 +3,14 @@
 import { unlink } from 'node:fs/promises';
 import chalk from 'chalk';
 import { program } from 'commander';
-import which from 'which';
 import { runAuto } from './auto.js';
 import type { AutoConfig, Config } from './config.js';
-import { exists } from './fs.js';
+import {
+  ensureClaudeInstalled,
+  ensureFileExists,
+  ensureFileNotExists,
+  exists,
+} from './fs.js';
 import { runInit, runIterate } from './init.js';
 import { run } from './loop.js';
 import { runPlan } from './plan.js';
@@ -15,22 +19,9 @@ async function checkPrereqs(
   promptFile: string,
   progressFile: string,
 ): Promise<void> {
-  if (!which.sync('claude', { nothrow: true })) {
-    console.error(
-      chalk.red("Error: 'claude' not found. Install Claude Code first."),
-    );
-    process.exit(1);
-  }
-  if (!(await exists(promptFile))) {
-    console.error(chalk.red(`Error: '${promptFile}' not found.`));
-    console.error(chalk.yellow(`Run 'ralph init' first to create it.`));
-    process.exit(1);
-  }
-  if (!(await exists(progressFile))) {
-    console.error(chalk.red(`Error: '${progressFile}' not found.`));
-    console.error(chalk.yellow(`Run 'ralph plan' first to create it.`));
-    process.exit(1);
-  }
+  ensureClaudeInstalled();
+  await ensureFileExists(promptFile, `Run 'ralph init' first to create it.`);
+  await ensureFileExists(progressFile, `Run 'ralph plan' first to create it.`);
 }
 
 program
@@ -136,25 +127,8 @@ program
       goal: string,
       opts: { tracking: string; maxIterations: string; force?: boolean },
     ) => {
-      if (!which.sync('claude', { nothrow: true })) {
-        console.error(
-          chalk.red("Error: 'claude' not found. Install Claude Code first."),
-        );
-        process.exit(1);
-      }
-
-      if ((await exists(opts.tracking)) && !opts.force) {
-        console.error(chalk.red(`Error: '${opts.tracking}' already exists.`));
-        console.error(
-          chalk.yellow('Use --force to overwrite, or delete it manually.'),
-        );
-        process.exit(1);
-      }
-
-      if (opts.force && (await exists(opts.tracking))) {
-        await unlink(opts.tracking);
-        console.log(chalk.dim(`Removed existing ${opts.tracking}`));
-      }
+      ensureClaudeInstalled();
+      await ensureFileNotExists(opts.tracking, opts.force);
 
       const config: AutoConfig = {
         goal,

@@ -1,18 +1,19 @@
 import { readFile } from 'node:fs/promises';
-import boxen from 'boxen';
 import chalk from 'chalk';
-import { execa } from 'execa';
+import { runClaude } from './claude.js';
 import { type Config, EXIT_CODES } from './config.js';
 import { exists } from './fs.js';
+import { checkStatus } from './status.js';
+import {
+  banner as baseBanner,
+  error,
+  showIteration,
+  success,
+  warning,
+} from './ui.js';
 
 function banner(): void {
-  console.log(
-    boxen(`${chalk.green('Ralph')} - Claude Code in a Loop`, {
-      padding: { left: 1, right: 1, top: 0, bottom: 0 },
-      borderColor: 'blue',
-      borderStyle: 'double',
-    }),
-  );
+  baseBanner('Ralph', 'Claude Code in a Loop', 'blue');
 }
 
 function showConfig(cfg: Config): void {
@@ -20,22 +21,6 @@ function showConfig(cfg: Config): void {
   console.log(`Progress file:   ${chalk.green(cfg.progressFile)}`);
   console.log(`Max iterations:  ${chalk.green(cfg.maxIterations)}\n`);
 }
-
-function showIteration(current: number, max: number): void {
-  const line = '━'.repeat(50);
-  console.log(
-    chalk.blue(`\n${line}\n  Iteration ${current}/${max}\n${line}\n`),
-  );
-}
-
-function message(color: typeof chalk.green, text: string): void {
-  const line = '═'.repeat(50);
-  console.log(color(`\n${line}\n  ${text}\n${line}`));
-}
-
-const success = (text: string) => message(chalk.green, text);
-const warning = (text: string) => message(chalk.yellow, text);
-const error = (text: string) => message(chalk.red, text);
 
 async function buildPrompt(config: Config): Promise<string> {
   const task = await readFile(config.promptFile, 'utf-8');
@@ -93,54 +78,6 @@ Do NOT try to complete multiple tasks in one iteration. Fresh context per iterat
 </instructions>`;
 }
 
-async function checkStatus(
-  config: Config,
-): Promise<'done' | 'blocked' | 'continue'> {
-  if (!(await exists(config.progressFile))) return 'continue';
-
-  const content = await readFile(config.progressFile, 'utf-8');
-  if (content.includes('## Status: DONE')) return 'done';
-  if (content.includes('## Status: BLOCKED')) return 'blocked';
-  return 'continue';
-}
-
-async function runClaude(prompt: string): Promise<void> {
-  const child = execa(
-    'claude',
-    ['--print', '--output-format', 'stream-json', '--verbose'],
-    {
-      input: prompt,
-      stdout: 'pipe',
-      stderr: 'inherit',
-    },
-  );
-
-  // Stream and parse JSON output to show Claude's responses
-  if (child.stdout) {
-    const rl = await import('node:readline');
-    const reader = rl.createInterface({ input: child.stdout });
-
-    for await (const line of reader) {
-      try {
-        const event = JSON.parse(line);
-        // Show assistant text messages
-        if (event.type === 'assistant' && event.message?.content) {
-          for (const block of event.message.content) {
-            if (block.type === 'text' && block.text) {
-              console.log(block.text);
-            }
-          }
-        }
-      } catch {
-        // Ignore JSON parse errors
-      }
-    }
-  }
-
-  await child;
-  console.log(); // Newline after Claude's output
-}
-
 export async function run(config: Config): Promise<number> {
   banner();
   showConfig(config);
@@ -157,7 +94,7 @@ export async function run(config: Config): Promise<number> {
       showIteration(i, config.maxIterations);
       await runClaude(await buildPrompt(config));
 
-      const status = await checkStatus(config);
+      const status = await checkStatus(config.progressFile);
       if (status === 'done') {
         success(`Task completed after ${i} iteration(s)!`);
         return EXIT_CODES.SUCCESS;

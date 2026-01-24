@@ -1,8 +1,10 @@
-import { unlink } from 'node:fs/promises';
 import chalk from 'chalk';
 import { execa } from 'execa';
-import which from 'which';
-import { exists } from './fs.js';
+import {
+  ensureClaudeInstalled,
+  ensureFileExists,
+  ensureFileNotExists,
+} from './fs.js';
 
 export interface InitOptions {
   output: string;
@@ -123,28 +125,8 @@ export async function runInit(
   initialPrompt: string,
   options: InitOptions,
 ): Promise<void> {
-  // Check claude CLI exists
-  if (!which.sync('claude', { nothrow: true })) {
-    console.error(
-      chalk.red("Error: 'claude' not found. Install Claude Code first."),
-    );
-    process.exit(1);
-  }
-
-  // Check if output file exists (unless --force)
-  if (!options.force && (await exists(options.output))) {
-    console.error(
-      chalk.red(
-        `Error: '${options.output}' already exists. Use --force to overwrite.`,
-      ),
-    );
-    process.exit(1);
-  }
-
-  // Delete output file if --force and file exists (so Claude starts fresh)
-  if (options.force && (await exists(options.output))) {
-    await unlink(options.output);
-  }
+  ensureClaudeInstalled();
+  await ensureFileNotExists(options.output, options.force);
 
   const systemPrompt = buildSystemPrompt(initialPrompt, options.output);
 
@@ -163,26 +145,15 @@ export async function runInit(
 }
 
 export async function runIterate(options: IterateOptions): Promise<void> {
-  // Check claude CLI exists
-  if (!which.sync('claude', { nothrow: true })) {
-    console.error(
-      chalk.red("Error: 'claude' not found. Install Claude Code first."),
-    );
-    process.exit(1);
-  }
+  ensureClaudeInstalled();
 
   const count = options.count ?? 1;
 
   for (let i = 0; i < count; i++) {
-    // Check if PROMPT.md exists
-    if (!(await exists(options.output))) {
-      console.error(
-        chalk.red(
-          `Error: '${options.output}' not found. Run 'ralph init' first to create it.`,
-        ),
-      );
-      process.exit(1);
-    }
+    await ensureFileExists(
+      options.output,
+      `Run 'ralph init' first to create it.`,
+    );
 
     const systemPrompt = buildIterateSystemPrompt(options.output);
 

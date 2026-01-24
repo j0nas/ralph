@@ -1,19 +1,20 @@
 import { readFile } from 'node:fs/promises';
-import boxen from 'boxen';
 import chalk from 'chalk';
-import { execa } from 'execa';
+import { runClaude } from './claude.js';
 import type { AutoConfig } from './config.js';
 import { EXIT_CODES } from './config.js';
 import { exists } from './fs.js';
+import { checkStatus } from './status.js';
+import {
+  banner as baseBanner,
+  error,
+  showIteration,
+  success,
+  warning,
+} from './ui.js';
 
 function banner(): void {
-  console.log(
-    boxen(`${chalk.green('Ralph Auto')} - Autonomous Mode`, {
-      padding: { left: 1, right: 1, top: 0, bottom: 0 },
-      borderColor: 'magenta',
-      borderStyle: 'double',
-    }),
-  );
+  baseBanner('Ralph Auto', 'Autonomous Mode', 'magenta');
 }
 
 function showConfig(config: AutoConfig): void {
@@ -21,24 +22,6 @@ function showConfig(config: AutoConfig): void {
   console.log(`Tracking file:   ${chalk.green(config.trackingFile)}`);
   console.log(`Max iterations:  ${chalk.green(config.maxIterations)}\n`);
 }
-
-function showIteration(current: number, max: number, phase: string): void {
-  const line = '━'.repeat(50);
-  console.log(
-    chalk.magenta(
-      `\n${line}\n  Iteration ${current}/${max} - ${phase}\n${line}\n`,
-    ),
-  );
-}
-
-function message(color: typeof chalk.green, text: string): void {
-  const line = '═'.repeat(50);
-  console.log(color(`\n${line}\n  ${text}\n${line}`));
-}
-
-const success = (text: string) => message(chalk.green, text);
-const warning = (text: string) => message(chalk.yellow, text);
-const error = (text: string) => message(chalk.red, text);
 
 function buildResearchPrompt(config: AutoConfig): string {
   return `Working directory: ${process.cwd()}
@@ -257,52 +240,6 @@ You are an intelligent agent, not a task executor. This means:
 </instructions>`;
 }
 
-async function checkAutoStatus(
-  config: AutoConfig,
-): Promise<'done' | 'blocked' | 'continue'> {
-  if (!(await exists(config.trackingFile))) return 'continue';
-
-  const content = await readFile(config.trackingFile, 'utf-8');
-  if (content.includes('## Status: DONE')) return 'done';
-  if (content.includes('## Status: BLOCKED')) return 'blocked';
-  return 'continue';
-}
-
-async function runClaude(prompt: string): Promise<void> {
-  const child = execa(
-    'claude',
-    ['--print', '--output-format', 'stream-json', '--verbose'],
-    {
-      input: prompt,
-      stdout: 'pipe',
-      stderr: 'inherit',
-    },
-  );
-
-  if (child.stdout) {
-    const rl = await import('node:readline');
-    const reader = rl.createInterface({ input: child.stdout });
-
-    for await (const line of reader) {
-      try {
-        const event = JSON.parse(line);
-        if (event.type === 'assistant' && event.message?.content) {
-          for (const block of event.message.content) {
-            if (block.type === 'text' && block.text) {
-              console.log(block.text);
-            }
-          }
-        }
-      } catch {
-        // Ignore JSON parse errors
-      }
-    }
-  }
-
-  await child;
-  console.log();
-}
-
 export async function runAuto(config: AutoConfig): Promise<number> {
   banner();
   showConfig(config);
@@ -319,7 +256,7 @@ export async function runAuto(config: AutoConfig): Promise<number> {
       const isFirstIteration = !(await exists(config.trackingFile));
       const phase = isFirstIteration ? 'Research & Plan' : 'Execute';
 
-      showIteration(i, config.maxIterations, phase);
+      showIteration(i, config.maxIterations, phase, chalk.magenta);
 
       const prompt = isFirstIteration
         ? buildResearchPrompt(config)
@@ -327,7 +264,7 @@ export async function runAuto(config: AutoConfig): Promise<number> {
 
       await runClaude(prompt);
 
-      const status = await checkAutoStatus(config);
+      const status = await checkStatus(config.trackingFile);
       if (status === 'done') {
         success(`Goal achieved after ${i} iteration(s)!`);
         return EXIT_CODES.SUCCESS;

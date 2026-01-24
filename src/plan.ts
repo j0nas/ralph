@@ -1,8 +1,10 @@
-import { unlink } from 'node:fs/promises';
 import chalk from 'chalk';
 import { execa } from 'execa';
-import which from 'which';
-import { exists } from './fs.js';
+import {
+  ensureClaudeInstalled,
+  ensureFileExists,
+  ensureFileNotExists,
+} from './fs.js';
 
 export interface PlanOptions {
   prompt: string;
@@ -56,35 +58,12 @@ Write the file to: ${outputPath}`;
 }
 
 export async function runPlan(options: PlanOptions): Promise<void> {
-  // Check claude CLI exists
-  if (!which.sync('claude', { nothrow: true })) {
-    console.error(
-      chalk.red("Error: 'claude' not found. Install Claude Code first."),
-    );
-    process.exit(1);
-  }
-
-  // Check prompt file exists
-  if (!(await exists(options.prompt))) {
-    console.error(chalk.red(`Error: '${options.prompt}' not found.`));
-    console.error(chalk.yellow(`Run 'ralph init' first to create it.`));
-    process.exit(1);
-  }
-
-  // Check if output file exists (unless --force)
-  if (!options.force && (await exists(options.output))) {
-    console.error(
-      chalk.red(
-        `Error: '${options.output}' already exists. Use --force to overwrite.`,
-      ),
-    );
-    process.exit(1);
-  }
-
-  // Delete output file if --force and file exists (so Claude starts fresh)
-  if (options.force && (await exists(options.output))) {
-    await unlink(options.output);
-  }
+  ensureClaudeInstalled();
+  await ensureFileExists(
+    options.prompt,
+    `Run 'ralph init' first to create it.`,
+  );
+  await ensureFileNotExists(options.output, options.force);
 
   const systemPrompt = buildSystemPrompt(options.output);
 
