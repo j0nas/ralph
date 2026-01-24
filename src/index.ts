@@ -4,7 +4,8 @@ import { unlink } from 'node:fs/promises';
 import chalk from 'chalk';
 import { program } from 'commander';
 import which from 'which';
-import type { Config } from './config.js';
+import { runAuto } from './auto.js';
+import type { AutoConfig, Config } from './config.js';
 import { exists } from './fs.js';
 import { runInit, runIterate } from './init.js';
 import { run } from './loop.js';
@@ -122,6 +123,48 @@ program
   .action(async (opts: { prompt: string; output: string; force?: boolean }) => {
     await runPlan(opts);
   });
+
+program
+  .command('auto')
+  .description('Fully autonomous mode - research, plan, and execute')
+  .argument('<goal>', 'Brief description of what to accomplish')
+  .option('-t, --tracking <file>', 'Tracking file', 'auto.md')
+  .option('-m, --max-iterations <n>', 'Max iterations', '50')
+  .option('-f, --force', 'Overwrite existing tracking file')
+  .action(
+    async (
+      goal: string,
+      opts: { tracking: string; maxIterations: string; force?: boolean },
+    ) => {
+      if (!which.sync('claude', { nothrow: true })) {
+        console.error(
+          chalk.red("Error: 'claude' not found. Install Claude Code first."),
+        );
+        process.exit(1);
+      }
+
+      if ((await exists(opts.tracking)) && !opts.force) {
+        console.error(chalk.red(`Error: '${opts.tracking}' already exists.`));
+        console.error(
+          chalk.yellow('Use --force to overwrite, or delete it manually.'),
+        );
+        process.exit(1);
+      }
+
+      if (opts.force && (await exists(opts.tracking))) {
+        await unlink(opts.tracking);
+        console.log(chalk.dim(`Removed existing ${opts.tracking}`));
+      }
+
+      const config: AutoConfig = {
+        goal,
+        trackingFile: opts.tracking,
+        maxIterations: parseInt(opts.maxIterations, 10),
+      };
+
+      process.exit(await runAuto(config));
+    },
+  );
 
 program
   .command('clear')

@@ -4,6 +4,12 @@ export interface Config {
   maxIterations: number;
 }
 
+export interface AutoConfig {
+  goal: string;
+  trackingFile: string;
+  maxIterations: number;
+}
+
 export const EXIT_CODES = {
   SUCCESS: 0,
   BLOCKED: 1,
