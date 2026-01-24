@@ -142,11 +142,18 @@ program
 
 program
   .command('clear')
-  .description('Delete PROMPT.md and progress.md to reset Ralph loop state')
+  .description(
+    'Delete PROMPT.md, progress.md, and auto.md to reset Ralph state',
+  )
   .option('-p, --prompt <file>', 'Prompt file to delete', 'PROMPT.md')
   .option('-d, --progress <file>', 'Progress file to delete', 'progress.md')
+  .option('-t, --tracking <file>', 'Tracking file to delete', 'auto.md')
   .action(async (_opts, cmd) => {
-    const opts = cmd.optsWithGlobals() as { prompt: string; progress: string };
+    const opts = cmd.optsWithGlobals() as {
+      prompt: string;
+      progress: string;
+      tracking: string;
+    };
     const deleted: string[] = [];
     const missing: string[] = [];
 
@@ -164,6 +171,14 @@ program
       deleted.push(opts.progress);
     } else {
       missing.push(opts.progress);
+    }
+
+    // Delete tracking file
+    if (await exists(opts.tracking)) {
+      await unlink(opts.tracking);
+      deleted.push(opts.tracking);
+    } else {
+      missing.push(opts.tracking);
     }
 
     // Print feedback
