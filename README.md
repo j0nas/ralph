@@ -24,47 +24,57 @@ npm run build
 npm link
 ```
 
-## Quick Start
-
-```bash
-# 1. Create a new session (Claude will ask clarifying questions)
-ralph init "Build a REST API for user management"
-
-# 2. Break down into tasks
-ralph plan
-
-# 3. Run the loop
-ralph
-```
-
 ## Usage
 
-```
-ralph [session-id]          Run the loop (auto-detects if only one session)
-ralph init <prompt>         Create a new session through conversation
-ralph plan [session-id]     Break down session into actionable steps
-ralph sessions              List active sessions
-ralph sessions --clean      Delete all sessions
-
-Init options:
-  -s, --session <name>      Custom session name (otherwise auto-generated)
-  -i, --iterate [count]     Refine an existing session (default: 1 pass)
-
-Loop options:
-  -m, --max-iterations <n>  Maximum iterations (default: "50")
+```bash
+ralph                 # Full interactive workflow
+ralph -m 10           # With custom max iterations (default: 50)
 ```
 
-## How It Works
+That's it. One command runs the complete workflow:
+
+1. **Prompt** - Asks what you want to build
+2. **Init** - Claude asks 2-4 clarifying questions
+3. **Refine** - Option to refine task spec (loop until satisfied)
+4. **Plan** - Breaks down into actionable steps
+5. **Execute** - Works through tasks in fresh context iterations
+
+## Workflow
 
 ```
-┌─────────────────────────────────────────────┐
-│  1. Read session file from temp directory   │
-│  2. Spawn fresh Claude Code instance        │
-│  3. Claude works on task, updates session   │
-│  4. Check for completion signal             │
-│  5. If not done → loop back to step 1       │
-│  6. If done or max iterations → exit        │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  1. PROMPT                                                    │
+│     "What would you like to build?"                          │
+│                                                               │
+│  2. INIT (interactive)                                        │
+│     Claude asks clarifying questions                          │
+│     Creates session file with task spec                       │
+│                                                               │
+│  3. REFINE (interactive, loop)                                │
+│     "Refine the task further? (y/N)"                         │
+│     If yes → Claude improves task spec → ask again            │
+│     If no (or Enter) → proceed                                │
+│                                                               │
+│  4. PLAN (non-interactive)                                    │
+│     Claude breaks down into steps                             │
+│     Adds Status/Completed/Remaining sections                  │
+│                                                               │
+│  5. EXECUTE (non-interactive, loop)                           │
+│     Fresh Claude instances iterate                            │
+│     Until DONE/BLOCKED/max iterations                         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+## Parallel Work
+
+For parallel work, simply run `ralph` in multiple terminals. Each run creates its own independent session.
+
+```bash
+# Terminal 1
+ralph     # "Build user authentication"
+
+# Terminal 2
+ralph     # "Add payment processing"
 ```
 
 ## Session Files
@@ -94,56 +104,19 @@ Current work description...
 Observations, context...
 ```
 
-## Exit Signals
-
-Claude should update the session file with status:
-
-- `## Status: IN_PROGRESS` - Keep iterating
-- `## Status: DONE` - Task complete, exit successfully
-- `## Status: BLOCKED` - Needs human help, exit with error
-
 ## Exit Codes
 
 | Code | Meaning |
 |------|---------|
-| 0 | Task completed (DONE status found) |
+| 0 | Task completed (DONE status) |
 | 1 | Task blocked or error |
 | 2 | Max iterations reached |
 | 130 | Interrupted (Ctrl+C) |
 
-## Parallel Sessions
-
-Each session has a unique ID, allowing multiple sessions to run simultaneously:
-
-```bash
-# Create multiple sessions
-ralph init "Build user authentication" -s auth
-ralph init "Add payment processing" -s payments
-
-# Run them in parallel
-ralph auth &
-ralph payments &
-```
-
-## Refining Your Task
-
-Use `--iterate` to improve an existing session through multiple refinement passes:
-
-```bash
-# Single refinement pass
-ralph init --iterate -s my-session
-
-# Multiple refinement passes
-ralph init --iterate 3 -s my-session
-```
-
-Each pass spawns an interactive Claude session that analyzes gaps, ambiguities, and specificity issues in your task, then asks clarifying questions to improve it.
-
-**Important**: To end each Claude session and continue to the next iteration, type `/exit` in Claude. Pressing Ctrl+C will terminate the entire process.
-
 ## Tips
 
-- **Be specific in your task** - Clear success criteria help Claude know when it's done
+- **Be specific** - Clear success criteria help Claude know when it's done
+- **Use the refine loop** - Keep refining until your task spec is solid
 - **Start with low iterations** - Test with `-m 3` before running longer loops
 - **Use git** - Commit between runs to track changes
 - **Sessions are ephemeral** - They live in temp directory and clean up on reboot
