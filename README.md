@@ -39,30 +39,29 @@ That's it. One command runs the complete workflow:
 4. **Plan** - Breaks down into actionable steps
 5. **Execute** - Works through tasks in fresh context iterations
 
-## Workflow
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│  1. PROMPT                                                    │
-│     "What would you like to build?"                          │
-│                                                               │
-│  2. INIT (interactive)                                        │
-│     Claude asks clarifying questions                          │
-│     Creates session file with task spec                       │
-│                                                               │
-│  3. REFINE (interactive, loop)                                │
-│     "Refine the task further? (y/N)"                         │
-│     If yes → Claude improves task spec → ask again            │
-│     If no (or Enter) → proceed                                │
-│                                                               │
-│  4. PLAN (non-interactive)                                    │
-│     Claude breaks down into steps                             │
-│     Adds Status/Completed/Remaining sections                  │
-│                                                               │
-│  5. EXECUTE (non-interactive, loop)                           │
-│     Fresh Claude instances iterate                            │
-│     Until DONE/BLOCKED/max iterations                         │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│  1. PROMPT                                                                       │
+│     "What would you like to build?"                                              │
+│                                                                                  │
+│  2. INIT (interactive)                                                           │
+│     Claude asks clarifying questions                                             │
+│     Creates session file with task spec                                          │
+│     `/exit` or CTRL-C out of interactive `claude` session when done to proceed   │
+│                                                                                  │
+│  3. REFINE (interactive, loop)                                                   │
+│     "Refine the task further? (y/N)"                                             │
+│     If yes → Claude improves task spec → ask again                               │
+│     If no (or Enter) → proceed                                                   │
+│     `/exit` or CTRL-C out of interactive `claude` session when done to proceed   │
+│                                                                                  │
+│  4. PLAN (non-interactive)                                                       │
+│     Claude breaks down into steps                                                │
+│     Adds Status/Completed/Remaining sections                                     │
+│                                                                                  │
+│  5. EXECUTE (non-interactive, loop)                                              │
+│     Fresh Claude instances iterate                                               │
+│     Until DONE/BLOCKED/max iterations                                            │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Parallel Work
