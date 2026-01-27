@@ -3,14 +3,8 @@
 import { unlink } from 'node:fs/promises';
 import chalk from 'chalk';
 import { program } from 'commander';
-import { runAuto } from './auto.js';
-import type { AutoConfig, Config } from './config.js';
-import {
-  ensureClaudeInstalled,
-  ensureFileExists,
-  ensureFileNotExists,
-  exists,
-} from './fs.js';
+import type { Config } from './config.js';
+import { ensureClaudeInstalled, ensureFileExists, exists } from './fs.js';
 import { runInit, runIterate } from './init.js';
 import { run } from './loop.js';
 import { runPlan } from './plan.js';
@@ -116,43 +110,14 @@ program
   });
 
 program
-  .command('auto')
-  .description('Fully autonomous mode - research, plan, and execute')
-  .argument('<goal>', 'Brief description of what to accomplish')
-  .option('-t, --tracking <file>', 'Tracking file', 'auto.md')
-  .option('-m, --max-iterations <n>', 'Max iterations', '50')
-  .option('-f, --force', 'Overwrite existing tracking file')
-  .action(
-    async (
-      goal: string,
-      opts: { tracking: string; maxIterations: string; force?: boolean },
-    ) => {
-      ensureClaudeInstalled();
-      await ensureFileNotExists(opts.tracking, opts.force);
-
-      const config: AutoConfig = {
-        goal,
-        trackingFile: opts.tracking,
-        maxIterations: parseInt(opts.maxIterations, 10),
-      };
-
-      process.exit(await runAuto(config));
-    },
-  );
-
-program
   .command('clear')
-  .description(
-    'Delete PROMPT.md, progress.md, and auto.md to reset Ralph state',
-  )
+  .description('Delete PROMPT.md and progress.md to reset Ralph state')
   .option('-p, --prompt <file>', 'Prompt file to delete', 'PROMPT.md')
   .option('-d, --progress <file>', 'Progress file to delete', 'progress.md')
-  .option('-t, --tracking <file>', 'Tracking file to delete', 'auto.md')
   .action(async (_opts, cmd) => {
     const opts = cmd.optsWithGlobals() as {
       prompt: string;
       progress: string;
-      tracking: string;
     };
     const deleted: string[] = [];
     const missing: string[] = [];
@@ -171,14 +136,6 @@ program
       deleted.push(opts.progress);
     } else {
       missing.push(opts.progress);
-    }
-
-    // Delete tracking file
-    if (await exists(opts.tracking)) {
-      await unlink(opts.tracking);
-      deleted.push(opts.tracking);
-    } else {
-      missing.push(opts.tracking);
     }
 
     // Print feedback
