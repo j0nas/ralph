@@ -1,28 +1,22 @@
 import chalk from 'chalk';
 import { execa } from 'execa';
-import {
-  ensureClaudeInstalled,
-  ensureFileExists,
-  ensureFileNotExists,
-} from './fs.js';
+import { ensureClaudeInstalled } from './fs.js';
+import { getSessionPath, readSession, sessionExists } from './session.js';
 
 export interface PlanOptions {
-  prompt: string;
-  output: string;
-  force?: boolean;
+  sessionId: string;
 }
 
-function buildSystemPrompt(outputPath: string): string {
+function buildSystemPrompt(sessionId: string): string {
+  const sessionPath = getSessionPath(sessionId);
   return `You are breaking down a task into bite-sized steps for Ralph, a tool that runs Claude Code in iterative loops with fresh context per iteration.
 
 Working directory: ${process.cwd()}
 
 <your_task>
-Analyze the task and generate a progress.md file with concrete, actionable steps.
+Analyze the Task section and add progress tracking sections to the session file.
 
-# Progress Tracking
-
-> **📋 Full Task Specification:** See @PROMPT.md for complete requirements and success criteria.
+Add these sections after the Task section:
 
 ## Status: IN_PROGRESS
 
@@ -52,28 +46,39 @@ Analyze the task and generate a progress.md file with concrete, actionable steps
 - Each step should have a clear "done" state
 - Include a final verification step that checks all success criteria
 - Be specific - "Implement user login endpoint" not "Work on authentication"
+- Do NOT modify the existing Task section - only add the new progress sections
 </guidelines>
 
-Write the file to: ${outputPath}`;
+Update the file: ${sessionPath}`;
 }
 
 export async function runPlan(options: PlanOptions): Promise<void> {
   ensureClaudeInstalled();
-  await ensureFileExists(
-    options.prompt,
-    `Run 'ralph init' first to create it.`,
-  );
-  await ensureFileNotExists(options.output, options.force);
 
-  const systemPrompt = buildSystemPrompt(options.output);
+  if (!(await sessionExists(options.sessionId))) {
+    console.error(
+      chalk.red(`Error: Session '${options.sessionId}' not found.`),
+    );
+    console.error(chalk.yellow("Run 'ralph init' first to create a session."));
+    process.exit(1);
+  }
 
-  console.log(
-    chalk.cyan(`\nGenerating ${options.output} from ${options.prompt}...\n`),
-  );
+  // Check if session already has progress sections
+  const content = await readSession(options.sessionId);
+  if (content.includes('## Status:')) {
+    console.error(chalk.red('Error: Session already has progress sections.'));
+    console.error(chalk.yellow('The session has already been planned.'));
+    process.exit(1);
+  }
+
+  const sessionPath = getSessionPath(options.sessionId);
+  const systemPrompt = buildSystemPrompt(options.sessionId);
+
+  console.log(chalk.cyan(`\nPlanning session ${options.sessionId}...\n`));
 
   // Run Claude in print mode - no user interaction needed
   await execa('claude', ['--print', '--system-prompt', systemPrompt], {
-    input: `Analyze @${options.prompt} and generate the progress.md file.`,
+    input: `Analyze @${sessionPath} and add progress tracking sections.`,
     stdio: ['pipe', 'inherit', 'inherit'],
   });
 }

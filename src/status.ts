@@ -1,12 +1,11 @@
-import { readFile } from 'node:fs/promises';
-import { exists } from './fs.js';
+import { readSession, sessionExists } from './session.js';
 
 export type Status = 'done' | 'blocked' | 'continue';
 
-export async function checkStatus(filePath: string): Promise<Status> {
-  if (!(await exists(filePath))) return 'continue';
+export async function checkStatus(sessionId: string): Promise<Status> {
+  if (!(await sessionExists(sessionId))) return 'continue';
 
-  const content = await readFile(filePath, 'utf-8');
+  const content = await readSession(sessionId);
   if (content.includes('## Status: DONE')) return 'done';
   if (content.includes('## Status: BLOCKED')) return 'blocked';
   return 'continue';

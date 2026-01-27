@@ -1,8 +1,7 @@
-import { readFile } from 'node:fs/promises';
 import chalk from 'chalk';
 import { runClaude } from './claude.js';
 import { type Config, EXIT_CODES } from './config.js';
-import { exists } from './fs.js';
+import { getSessionPath, readSession } from './session.js';
 import { checkStatus } from './status.js';
 import {
   banner as baseBanner,
@@ -17,36 +16,34 @@ function banner(): void {
 }
 
 function showConfig(cfg: Config): void {
-  console.log(`\nPrompt file:     ${chalk.green(cfg.promptFile)}`);
-  console.log(`Progress file:   ${chalk.green(cfg.progressFile)}`);
+  const sessionPath = getSessionPath(cfg.sessionId);
+  console.log(`\nSession:         ${chalk.green(cfg.sessionId)}`);
+  console.log(`Session file:    ${chalk.dim(sessionPath)}`);
   console.log(`Max iterations:  ${chalk.green(cfg.maxIterations)}\n`);
 }
 
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes > 0) return `${minutes}m ${remainingSeconds}s`;
+  return `${seconds}s`;
+}
+
 async function buildPrompt(config: Config): Promise<string> {
-  const task = await readFile(config.promptFile, 'utf-8');
-  const hasProgress = await exists(config.progressFile);
-  const progress = hasProgress
-    ? await readFile(config.progressFile, 'utf-8')
-    : null;
+  const sessionContent = await readSession(config.sessionId);
+  const sessionPath = getSessionPath(config.sessionId);
 
   return `Working directory: ${process.cwd()}
 
-<task>
-${task}
-</task>
+<session>
+${sessionContent}
+</session>
 
 <context>
-You are working on a multi-iteration task. Each iteration starts with a fresh context window to avoid context degradation. Your work persists through the filesystem, particularly \`${config.progressFile}\`.
+You are working on a multi-iteration task. Each iteration starts with a fresh context window to avoid context degradation. Your work persists through the filesystem, particularly the session file at \`${sessionPath}\`.
 
-${
-  progress
-    ? `This is a continuation. Review your previous progress below and continue from where you left off.
-
-<previous_progress>
-${progress}
-</previous_progress>`
-    : 'This is the first iteration. Start by understanding the task and making initial progress.'
-}
+Review the session file above - it contains both the task specification and your progress so far.
 </context>
 
 <instructions>
@@ -60,10 +57,10 @@ A meaningful unit of work might be:
 - Fixing a specific bug
 
 Workflow for each iteration:
-1. Read progress.md to understand current state
+1. Read the session file to understand current state
 2. Pick the next task from Remaining
 3. Complete that ONE task
-4. Update \`${config.progressFile}\`:
+4. Update \`${sessionPath}\`:
    - Move the task to **Completed**
    - Update **Remaining** with next steps
    - Set **Status**: IN_PROGRESS, DONE, or BLOCKED
@@ -82,32 +79,53 @@ export async function run(config: Config): Promise<number> {
   banner();
   showConfig(config);
 
+  const sessionStart = Date.now();
+
   const handleInterrupt = () => {
-    console.log(chalk.yellow('\nInterrupted. Exiting...'));
+    const elapsed = formatDuration(Date.now() - sessionStart);
+    console.log(chalk.yellow(`\nInterrupted. Exiting... (Total: ${elapsed})`));
     process.exit(EXIT_CODES.INTERRUPTED);
   };
   process.on('SIGINT', handleInterrupt);
   process.on('SIGTERM', handleInterrupt);
 
+  const sessionPath = getSessionPath(config.sessionId);
+
   try {
     for (let i = 1; i <= config.maxIterations; i++) {
-      showIteration(i, config.maxIterations);
+      showIteration({
+        current: i,
+        max: config.maxIterations,
+        sessionId: config.sessionId,
+        sessionPath,
+      });
+      const iterationStart = Date.now();
       await runClaude(await buildPrompt(config));
+      const iterationDuration = formatDuration(Date.now() - iterationStart);
+      console.log(chalk.dim(`Iteration completed in ${iterationDuration}`));
 
-      const status = await checkStatus(config.progressFile);
+      const status = await checkStatus(config.sessionId);
+      const totalElapsed = formatDuration(Date.now() - sessionStart);
       if (status === 'done') {
-        success(`Task completed after ${i} iteration(s)!`);
+        success(
+          `Task completed after ${i} iteration(s)! (Total: ${totalElapsed})`,
+        );
         return EXIT_CODES.SUCCESS;
       }
       if (status === 'blocked') {
-        warning('Task blocked - human intervention needed');
-        warning(`Check ${config.progressFile} for details`);
+        warning(
+          `Task blocked - human intervention needed (Total: ${totalElapsed})`,
+        );
+        warning(`Check session ${config.sessionId} for details`);
         return EXIT_CODES.BLOCKED;
       }
     }
 
-    error(`Max iterations (${config.maxIterations}) reached`);
-    error(`Check ${config.progressFile} for progress`);
+    const totalElapsed = formatDuration(Date.now() - sessionStart);
+    error(
+      `Max iterations (${config.maxIterations}) reached (Total: ${totalElapsed})`,
+    );
+    error(`Check session ${config.sessionId} for progress`);
     return EXIT_CODES.MAX_ITERATIONS;
   } finally {
     process.off('SIGINT', handleInterrupt);

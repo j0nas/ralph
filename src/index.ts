@@ -1,152 +1,133 @@
 #!/usr/bin/env node
 
-import { unlink } from 'node:fs/promises';
 import chalk from 'chalk';
 import { program } from 'commander';
 import type { Config } from './config.js';
-import { ensureClaudeInstalled, ensureFileExists, exists } from './fs.js';
+import { ensureClaudeInstalled } from './fs.js';
 import { runInit, runIterate } from './init.js';
 import { run } from './loop.js';
 import { runPlan } from './plan.js';
-
-async function checkPrereqs(
-  promptFile: string,
-  progressFile: string,
-): Promise<void> {
-  ensureClaudeInstalled();
-  await ensureFileExists(promptFile, `Run 'ralph init' first to create it.`);
-  await ensureFileExists(progressFile, `Run 'ralph plan' first to create it.`);
-}
+import {
+  deleteAllSessions,
+  getSessionPath,
+  listSessions,
+  readSession,
+  resolveSessionId,
+} from './session.js';
 
 program
   .name('ralph')
   .description('Claude Code in a loop with fresh context per iteration')
   .version('1.0.0')
-  .option('-p, --prompt <file>', 'Prompt file', 'PROMPT.md')
-  .option('-d, --progress <file>', 'Progress file', 'progress.md')
+  .argument(
+    '[session-id]',
+    'Session ID to run (auto-detects if only one session)',
+  )
   .option('-m, --max-iterations <n>', 'Max iterations', '50')
-  .action(async (opts) => {
+  .option('-y, --yes', 'Skip confirmation prompt')
+  .action(async (sessionIdArg: string | undefined, opts) => {
+    ensureClaudeInstalled();
+
+    const sessionId = await resolveSessionId(sessionIdArg);
+
+    // Check if session has been planned
+    const content = await readSession(sessionId);
+    if (!content.includes('## Status:')) {
+      console.error(chalk.red('Error: Session has not been planned yet.'));
+      console.error(chalk.yellow(`Run 'ralph plan ${sessionId}' first.`));
+      process.exit(1);
+    }
+
     const config: Config = {
-      promptFile: opts.prompt,
-      progressFile: opts.progress,
+      sessionId,
       maxIterations: parseInt(opts.maxIterations, 10),
     };
 
-    await checkPrereqs(config.promptFile, config.progressFile);
     process.exit(await run(config));
   });
 
 program
   .command('init')
-  .description('Generate a PROMPT.md file through conversation with Claude')
-  .argument('[prompt]', 'Initial description of your task')
-  .option('-o, --output <file>', 'Output file path', 'PROMPT.md')
-  .option('-f, --force', 'Overwrite existing file')
+  .description('Create a new session through conversation with Claude')
+  .argument('<prompt>', 'Description of your task')
+  .option(
+    '-s, --session <name>',
+    'Custom session name (otherwise auto-generated)',
+  )
   .option(
     '-i, --iterate [count]',
-    'Refine an existing PROMPT.md (optionally specify number of passes, default: 1)',
+    'Refine an existing session (optionally specify number of passes, default: 1)',
   )
   .action(
     async (
-      prompt: string | undefined,
+      prompt: string,
       opts: {
-        output: string;
-        force?: boolean;
+        session?: string;
         iterate?: boolean | string;
       },
     ) => {
       if (opts.iterate) {
-        // If no PROMPT.md exists, run standard init first
-        if (!(await exists(opts.output))) {
-          if (!prompt) {
-            console.error(
-              chalk.red(
-                `Error: No ${opts.output} found. Provide a task description to create one first.`,
-              ),
-            );
-            console.error(
-              chalk.yellow(
-                `Usage: ralph init --iterate "your task description"`,
-              ),
-            );
-            process.exit(1);
-          }
-          console.log(
-            chalk.cyan(`No ${opts.output} found. Creating one first...\n`),
-          );
-          await runInit(prompt, { output: opts.output, force: opts.force });
-        }
-        // Now run the iterate refinement
-        // opts.iterate is true (flag only) or a string (with count)
+        // Iterate mode - refine an existing session
+        const sessionId = await resolveSessionId(opts.session);
         const count =
           typeof opts.iterate === 'string' ? parseInt(opts.iterate, 10) : 1;
-        await runIterate({
-          output: opts.output,
-          force: opts.force,
-          count,
-        });
+        await runIterate({ sessionId, count });
       } else {
-        // Standard init flow - prompt is required
-        if (!prompt) {
-          console.error(chalk.red('Error: Please provide a task description.'));
-          console.error(
-            chalk.yellow('Usage: ralph init "your task description"'),
-          );
-          process.exit(1);
-        }
-        await runInit(prompt, opts);
+        // Standard init flow
+        const sessionId = await runInit(prompt, { session: opts.session });
+        console.log(chalk.green(`\nSession created: ${sessionId}`));
+        console.log(chalk.dim(`Next: ralph plan ${sessionId}`));
       }
     },
   );
 
 program
   .command('plan')
-  .description('Break down PROMPT.md into tasks in progress.md')
-  .option('-p, --prompt <file>', 'Prompt file to read', 'PROMPT.md')
-  .option('-o, --output <file>', 'Output file path', 'progress.md')
-  .option('-f, --force', 'Overwrite existing file')
-  .action(async (opts: { prompt: string; output: string; force?: boolean }) => {
-    await runPlan(opts);
+  .description('Break down a session task into actionable steps')
+  .argument(
+    '[session-id]',
+    'Session ID to plan (auto-detects if only one session)',
+  )
+  .action(async (sessionIdArg: string | undefined) => {
+    const sessionId = await resolveSessionId(sessionIdArg);
+    await runPlan({ sessionId });
+    console.log(chalk.green(`\nSession planned: ${sessionId}`));
+    console.log(chalk.dim(`Next: ralph ${sessionId}`));
   });
 
 program
-  .command('clear')
-  .description('Delete PROMPT.md and progress.md to reset Ralph state')
-  .option('-p, --prompt <file>', 'Prompt file to delete', 'PROMPT.md')
-  .option('-d, --progress <file>', 'Progress file to delete', 'progress.md')
-  .action(async (_opts, cmd) => {
-    const opts = cmd.optsWithGlobals() as {
-      prompt: string;
-      progress: string;
-    };
-    const deleted: string[] = [];
-    const missing: string[] = [];
-
-    // Delete prompt file
-    if (await exists(opts.prompt)) {
-      await unlink(opts.prompt);
-      deleted.push(opts.prompt);
-    } else {
-      missing.push(opts.prompt);
+  .command('sessions')
+  .description('List or manage active sessions')
+  .option('--clean', 'Delete all sessions')
+  .action(async (opts: { clean?: boolean }) => {
+    if (opts.clean) {
+      const count = await deleteAllSessions();
+      if (count > 0) {
+        console.log(chalk.green(`Deleted ${count} session(s).`));
+      } else {
+        console.log(chalk.dim('No sessions to delete.'));
+      }
+      return;
     }
 
-    // Delete progress file
-    if (await exists(opts.progress)) {
-      await unlink(opts.progress);
-      deleted.push(opts.progress);
-    } else {
-      missing.push(opts.progress);
+    const sessions = await listSessions();
+
+    if (sessions.length === 0) {
+      console.log(chalk.dim('No active sessions.'));
+      console.log(
+        chalk.yellow('Run \'ralph init "your task"\' to create one.'),
+      );
+      return;
     }
 
-    // Print feedback
-    if (deleted.length > 0) {
-      console.log(chalk.green(`Deleted: ${deleted.join(', ')}`));
-    }
-    if (missing.length > 0) {
-      console.log(chalk.dim(`Already missing: ${missing.join(', ')}`));
-    }
-    if (deleted.length === 0 && missing.length > 0) {
-      console.log(chalk.yellow('Nothing to clear.'));
+    console.log(chalk.cyan(`\nActive sessions (${sessions.length}):\n`));
+    for (const session of sessions) {
+      const path = getSessionPath(session.id);
+      console.log(`  ${chalk.green(session.id)}`);
+      console.log(`    Directory: ${session.workingDirectory}`);
+      console.log(`    Created:   ${session.createdAt.toLocaleString()}`);
+      console.log(`    File:      ${chalk.dim(path)}`);
+      console.log();
     }
   });
 

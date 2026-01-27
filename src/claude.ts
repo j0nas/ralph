@@ -23,7 +23,8 @@ export async function runClaude(prompt: string): Promise<void> {
         if (event.type === 'assistant' && event.message?.content) {
           for (const block of event.message.content) {
             if (block.type === 'text' && block.text) {
-              console.log(block.text);
+              const timestamp = new Date().toLocaleTimeString('en-GB');
+              console.log(`[${timestamp}] ${block.text}`);
             }
           }
         }

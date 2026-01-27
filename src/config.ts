@@ -1,6 +1,5 @@
 export interface Config {
-  promptFile: string;
-  progressFile: string;
+  sessionId: string;
   maxIterations: number;
 }
 

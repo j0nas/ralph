@@ -24,15 +24,37 @@ export const success = (text: string): void => message(chalk.green, text);
 export const warning = (text: string): void => message(chalk.yellow, text);
 export const error = (text: string): void => message(chalk.red, text);
 
-export function showIteration(
-  current: number,
-  max: number,
-  phase?: string,
-  color: ChalkInstance = chalk.blue,
-): void {
+export interface IterationOptions {
+  current: number;
+  max: number;
+  sessionId?: string;
+  sessionPath?: string;
+  phase?: string;
+  color?: ChalkInstance;
+}
+
+export function showIteration(opts: IterationOptions): void {
+  const {
+    current,
+    max,
+    sessionId,
+    sessionPath,
+    phase,
+    color = chalk.blue,
+  } = opts;
   const line = '━'.repeat(50);
   const label = phase
     ? `Iteration ${current}/${max} - ${phase}`
     : `Iteration ${current}/${max}`;
-  console.log(color(`\n${line}\n  ${label}\n${line}\n`));
+
+  let output = `\n${line}\n  ${label}\n`;
+  if (sessionId) {
+    output += `  ${chalk.dim(`Session: ${sessionId}`)}\n`;
+  }
+  if (sessionPath) {
+    output += `  ${chalk.dim(`File: ${sessionPath}`)}\n`;
+  }
+  output += `${line}\n`;
+
+  console.log(color(output));
 }
