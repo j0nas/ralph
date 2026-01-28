@@ -171,10 +171,11 @@ npm link
 ## Usage
 
 ```bash
-ralph                 # Full interactive workflow (default)
-ralph resume <id>     # Resume a blocked or interrupted session
-ralph list            # List all sessions
-ralph -m 10           # With custom max iterations (default: 50)
+ralph                         # Full interactive workflow (default)
+ralph resume <id>             # Resume a blocked or interrupted session
+ralph resume <id> "message"   # Resume with context for Claude
+ralph list                    # List all sessions
+ralph -m 10                   # With custom max iterations (default: 50)
 ```
 
 One command runs the complete workflow. Use `ralph list` to see existing sessions and `ralph resume <id>` to continue where you left off.

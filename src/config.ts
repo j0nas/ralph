@@ -1,6 +1,7 @@
 export interface Config {
   sessionId: string;
   maxIterations: number;
+  message?: string;
 }
 
 export const EXIT_CODES = {

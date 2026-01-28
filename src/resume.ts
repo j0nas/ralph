@@ -10,10 +10,11 @@ import { checkStatus } from './status.js';
 export interface ResumeOptions {
   sessionId: string;
   maxIterations: number;
+  message?: string;
 }
 
 export async function runResume(options: ResumeOptions): Promise<number> {
-  const { sessionId, maxIterations } = options;
+  const { sessionId, maxIterations, message } = options;
 
   // Check if session exists
   if (!(await sessionExists(sessionId))) {
@@ -60,5 +61,5 @@ export async function runResume(options: ResumeOptions): Promise<number> {
   }
 
   // Resume the execution loop
-  return run({ sessionId, maxIterations });
+  return run({ sessionId, maxIterations, message });
 }

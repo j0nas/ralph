@@ -27,15 +27,16 @@ program
 
 // Resume command
 program
-  .command('resume <id>')
+  .command('resume <id> [message]')
   .description('Resume a blocked or interrupted session')
   .option('-m, --max-iterations <n>', 'Max iterations', '50')
-  .action(async (id, opts) => {
+  .action(async (id, message, opts) => {
     ensureClaudeInstalled();
     process.exit(
       await runResume({
         sessionId: id,
         maxIterations: parseInt(opts.maxIterations, 10),
+        message,
       }),
     );
   });

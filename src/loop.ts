@@ -34,6 +34,18 @@ async function buildPrompt(config: Config): Promise<string> {
   const sessionContent = await readSession(config.sessionId);
   const sessionPath = getSessionPath(config.sessionId);
 
+  const userMessageSection = config.message
+    ? `
+
+<user-message>
+The user has provided the following message when resuming this session:
+
+${config.message}
+
+Take this into account as you proceed with the next iteration.
+</user-message>`
+    : '';
+
   return `Working directory: ${process.cwd()}
 
 <session>
@@ -44,7 +56,7 @@ ${sessionContent}
 You are working on a multi-iteration task. Each iteration starts with a fresh context window to avoid context degradation. Your work persists through the filesystem, particularly the session file at \`${sessionPath}\`.
 
 Review the session file above - it contains both the task specification and your progress so far.
-</context>
+</context>${userMessageSection}
 
 <instructions>
 Each iteration should complete ONE meaningful unit of work, then exit. This keeps context fresh and ensures progress is always recorded.
