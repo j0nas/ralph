@@ -116,7 +116,7 @@ export async function run(config: Config): Promise<number> {
         warning(
           `Task blocked - human intervention needed (Total: ${totalElapsed})`,
         );
-        warning(`Check session ${config.sessionId} for details`);
+        console.log(chalk.dim(`Resume with: ralph resume ${config.sessionId}`));
         return EXIT_CODES.BLOCKED;
       }
     }
@@ -125,7 +125,7 @@ export async function run(config: Config): Promise<number> {
     error(
       `Max iterations (${config.maxIterations}) reached (Total: ${totalElapsed})`,
     );
-    error(`Check session ${config.sessionId} for progress`);
+    console.log(chalk.dim(`Resume with: ralph resume ${config.sessionId}`));
     return EXIT_CODES.MAX_ITERATIONS;
   } finally {
     process.off('SIGINT', handleInterrupt);
