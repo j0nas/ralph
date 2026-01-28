@@ -15,7 +15,7 @@ program
 program
   .command('start', { isDefault: true })
   .description('Start a new ralph session (default)')
-  .option('-m, --max-iterations <n>', 'Max iterations', '50')
+  .option('-m, --max-iterations <n>', 'Max iterations', '500')
   .action(async (opts) => {
     ensureClaudeInstalled();
     process.exit(
@@ -29,7 +29,7 @@ program
 program
   .command('resume <id> [message]')
   .description('Resume a blocked or interrupted session')
-  .option('-m, --max-iterations <n>', 'Max iterations', '50')
+  .option('-m, --max-iterations <n>', 'Max iterations', '500')
   .action(async (id, message, opts) => {
     ensureClaudeInstalled();
     process.exit(
