@@ -1,7 +1,13 @@
 import chalk from 'chalk';
 import { runClaude } from './claude.js';
 import { type Config, EXIT_CODES } from './config.js';
-import { getSessionPath, readSession } from './session.js';
+import {
+  getSessionPath,
+  parseFrontMatter,
+  readSession,
+  updateFrontMatter,
+  writeSession,
+} from './session.js';
 import { checkStatus } from './status.js';
 import {
   banner as baseBanner,
@@ -28,6 +34,15 @@ function formatDuration(ms: number): string {
   const remainingSeconds = seconds % 60;
   if (minutes > 0) return `${minutes}m ${remainingSeconds}s`;
   return `${seconds}s`;
+}
+
+async function updateSessionFrontMatter(
+  sessionId: string,
+  updates: Parameters<typeof updateFrontMatter>[1],
+): Promise<void> {
+  const content = await readSession(sessionId);
+  const newContent = updateFrontMatter(content, updates);
+  await writeSession(sessionId, newContent);
 }
 
 async function buildPrompt(config: Config): Promise<string> {
@@ -83,6 +98,8 @@ Status meanings:
 - \`## Status: BLOCKED\` - Need human input to proceed
 - \`## Status: IN_PROGRESS\` - More work remains (default)
 
+IMPORTANT: Do NOT modify the YAML front matter between the \`---\` markers at the top of the session file. This is managed by the CLI.
+
 Do NOT try to complete multiple tasks in one iteration. Fresh context per iteration is the whole point.
 </instructions>`;
 }
@@ -103,6 +120,9 @@ export async function run(config: Config): Promise<number> {
 
   const sessionPath = getSessionPath(config.sessionId);
 
+  // Set stage to running at loop start
+  await updateSessionFrontMatter(config.sessionId, { stage: 'running' });
+
   try {
     for (let i = 1; i <= config.maxIterations; i++) {
       showIteration({
@@ -116,15 +136,25 @@ export async function run(config: Config): Promise<number> {
       const iterationDuration = formatDuration(Date.now() - iterationStart);
       console.log(chalk.dim(`Iteration completed in ${iterationDuration}`));
 
+      // Increment iteration count in front matter
+      const currentContent = await readSession(config.sessionId);
+      const currentFrontMatter = parseFrontMatter(currentContent);
+      const newIterations = (currentFrontMatter?.iterations ?? 0) + 1;
+      await updateSessionFrontMatter(config.sessionId, {
+        iterations: newIterations,
+      });
+
       const status = await checkStatus(config.sessionId);
       const totalElapsed = formatDuration(Date.now() - sessionStart);
       if (status === 'done') {
+        await updateSessionFrontMatter(config.sessionId, { stage: 'done' });
         success(
           `Task completed after ${i} iteration(s)! (Total: ${totalElapsed})`,
         );
         return EXIT_CODES.SUCCESS;
       }
       if (status === 'blocked') {
+        await updateSessionFrontMatter(config.sessionId, { stage: 'blocked' });
         warning(
           `Task blocked - human intervention needed (Total: ${totalElapsed})`,
         );

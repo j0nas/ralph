@@ -1,7 +1,14 @@
 import chalk from 'chalk';
 import { execa } from 'execa';
 import { ensureClaudeInstalled } from './fs.js';
-import { getSessionPath, readSession, sessionExists } from './session.js';
+import {
+  getSessionPath,
+  parseFrontMatter,
+  readSession,
+  sessionExists,
+  updateFrontMatter,
+  writeSession,
+} from './session.js';
 
 export interface PlanOptions {
   sessionId: string;
@@ -47,6 +54,7 @@ Add these sections after the Task section:
 - Include a final verification step that checks all success criteria
 - Be specific - "Implement user login endpoint" not "Work on authentication"
 - Do NOT modify the existing Task section - only add the new progress sections
+- IMPORTANT: Do NOT modify the YAML front matter between the \`---\` markers at the top of the session file. This is managed by the CLI.
 </guidelines>
 
 Update the file: ${sessionPath}`;
@@ -63,9 +71,10 @@ export async function runPlan(options: PlanOptions): Promise<void> {
     process.exit(1);
   }
 
-  // Check if session already has progress sections
+  // Check if session already has been planned (via front matter stage)
   const content = await readSession(options.sessionId);
-  if (content.includes('## Status:')) {
+  const frontMatter = parseFrontMatter(content);
+  if (frontMatter && frontMatter.stage !== 'initialized') {
     console.error(chalk.red('Error: Session already has progress sections.'));
     console.error(chalk.yellow('The session has already been planned.'));
     process.exit(1);
@@ -81,4 +90,9 @@ export async function runPlan(options: PlanOptions): Promise<void> {
     input: `Analyze @${sessionPath} and add progress tracking sections.`,
     stdio: ['pipe', 'inherit', 'inherit'],
   });
+
+  // Update front matter to mark as planned
+  const updatedContent = await readSession(options.sessionId);
+  const newContent = updateFrontMatter(updatedContent, { stage: 'planned' });
+  await writeSession(options.sessionId, newContent);
 }

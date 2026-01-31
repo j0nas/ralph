@@ -2,10 +2,10 @@ import chalk from 'chalk';
 import { run } from './loop.js';
 import {
   getSessionWorkingDirectory,
+  parseFrontMatter,
   readSession,
   sessionExists,
 } from './session.js';
-import { checkStatus } from './status.js';
 
 export interface ResumeOptions {
   sessionId: string;
@@ -26,13 +26,10 @@ export async function runResume(options: ResumeOptions): Promise<number> {
   // Read session content to check status
   const content = await readSession(sessionId);
 
-  // Check if session has a status marker (meaning it's been planned)
-  const hasStatus =
-    content.includes('## Status: DONE') ||
-    content.includes('## Status: BLOCKED') ||
-    content.includes('## Status: IN_PROGRESS');
+  // Check if session has been planned
+  const frontMatter = parseFrontMatter(content);
 
-  if (!hasStatus) {
+  if (!frontMatter || frontMatter.stage === 'initialized') {
     console.error(
       chalk.red(`Error: Session '${sessionId}' has not been planned yet.`),
     );
@@ -40,14 +37,6 @@ export async function runResume(options: ResumeOptions): Promise<number> {
       chalk.dim('Sessions must go through the planning phase before resuming.'),
     );
     return 1;
-  }
-
-  // Check current status
-  const status = await checkStatus(sessionId);
-
-  if (status === 'done') {
-    console.log(chalk.green(`Session '${sessionId}' is already completed.`));
-    return 0;
   }
 
   // Warn if working directory differs

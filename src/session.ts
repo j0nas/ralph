@@ -4,11 +4,66 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { exists } from './fs.js';
 
+export type SessionStage =
+  | 'initialized'
+  | 'planned'
+  | 'running'
+  | 'blocked'
+  | 'done';
+
+export interface SessionFrontMatter {
+  stage: SessionStage;
+  iterations: number;
+}
+
 export interface SessionInfo {
   id: string;
   created: string;
   workingDirectory: string;
   status: 'IN_PROGRESS' | 'DONE' | 'BLOCKED' | 'NOT_PLANNED';
+}
+
+export function parseFrontMatter(content: string): SessionFrontMatter | null {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return null;
+
+  const yaml = match[1];
+  const stageMatch = yaml.match(/^stage:\s*(.+)$/m);
+  const iterationsMatch = yaml.match(/^iterations:\s*(\d+)$/m);
+
+  if (!stageMatch) return null;
+
+  return {
+    stage: stageMatch[1] as SessionStage,
+    iterations: iterationsMatch ? parseInt(iterationsMatch[1], 10) : 0,
+  };
+}
+
+export function updateFrontMatter(
+  content: string,
+  updates: Partial<SessionFrontMatter>,
+): string {
+  const existing = parseFrontMatter(content);
+
+  if (!existing) {
+    // No front matter exists, add it
+    const newFrontMatter = {
+      stage: updates.stage ?? 'initialized',
+      iterations: updates.iterations ?? 0,
+    };
+    return `---\nstage: ${newFrontMatter.stage}\niterations: ${newFrontMatter.iterations}\n---\n${content}`;
+  }
+
+  // Update existing front matter
+  const updated = {
+    stage: updates.stage ?? existing.stage,
+    iterations: updates.iterations ?? existing.iterations,
+  };
+
+  return content.replace(
+    /^---\n[\s\S]*?\n---/,
+    `---\nstage: ${updated.stage}\niterations: ${updated.iterations}\n---`,
+  );
 }
 
 export function getSessionDir(): string {
@@ -46,7 +101,11 @@ export async function createSession(
   const timestamp = new Date().toISOString();
   const cwd = process.cwd();
 
-  const content = `# Session: ${id}
+  const content = `---
+stage: initialized
+iterations: 0
+---
+# Session: ${id}
 Created: ${timestamp}
 Working Directory: ${cwd}
 
@@ -66,6 +125,11 @@ export async function readSession(id: string): Promise<string> {
   return readFile(path, 'utf-8');
 }
 
+export async function writeSession(id: string, content: string): Promise<void> {
+  const path = getSessionPath(id);
+  await writeFile(path, content, 'utf-8');
+}
+
 export async function sessionExists(id: string): Promise<boolean> {
   return exists(getSessionPath(id));
 }
@@ -74,13 +138,25 @@ function parseSessionMetadata(content: string, id: string): SessionInfo {
   const createdMatch = content.match(/^Created:\s*(.+)$/m);
   const workDirMatch = content.match(/^Working Directory:\s*(.+)$/m);
 
+  const frontMatter = parseFrontMatter(content);
   let status: SessionInfo['status'] = 'NOT_PLANNED';
-  if (content.includes('## Status: DONE')) {
-    status = 'DONE';
-  } else if (content.includes('## Status: BLOCKED')) {
-    status = 'BLOCKED';
-  } else if (content.includes('## Status: IN_PROGRESS')) {
-    status = 'IN_PROGRESS';
+
+  if (frontMatter) {
+    switch (frontMatter.stage) {
+      case 'done':
+        status = 'DONE';
+        break;
+      case 'blocked':
+        status = 'BLOCKED';
+        break;
+      case 'running':
+      case 'planned':
+        status = 'IN_PROGRESS';
+        break;
+      default:
+        status = 'NOT_PLANNED';
+        break;
+    }
   }
 
   return {

@@ -4,6 +4,7 @@
 - [ ] Include verification prompts as part of each iteration. Use available tools to verify that the model is on the right track. Trust hierarchy: prioritize "objective, external verification": Playwright > Linters > Integration tests against real APIs (remember cleanup!) > Unit tests
 - Encourage parallelism/subagent use where possible to speed up the process
 - [ ] Mode to create "Project Goals" file that models can use to guide their behavior, re: "Decision-Making Principles" 
+- [ ] Extract all prompts to /prompts/ directory with an AGENTS.md covering prompting best practices from Anthropic docs
 
 Prompt excerpt that worked well in another project: 
 
