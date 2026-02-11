@@ -114,6 +114,10 @@ IMPORTANT: Do NOT modify the YAML front matter between the \`---\` markers at th
 
 Keep the \`## Verification\` section in the session file up to date. If you start a dev server on a different port, or the entry point changes, update the \`entry:\` line so the verifier can find the running application.
 
+Do NOT stop or kill dev servers before exiting. The CLI manages server lifecycle for verification — if you kill the server, the black-box verifier won't be able to test the application. Leave servers running when you exit.
+
+Clean up after yourself: delete any temporary files, screenshots, or test artifacts you created during the iteration. The working directory should only contain project files when you're done.
+
 Do NOT try to complete multiple tasks in one iteration. Fresh context per iteration is the whole point.
 </instructions>`;
 }
