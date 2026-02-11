@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import type { ReviewConfig, VerifyConfig } from './config.js';
 import { runInit, runIterate } from './init.js';
 import { run } from './loop.js';
 import { runPlan } from './plan.js';
@@ -6,6 +7,8 @@ import { askForPrompt, askYesNo } from './prompt.js';
 
 export interface FlowOptions {
   maxIterations: number;
+  review?: ReviewConfig;
+  verify?: VerifyConfig;
 }
 
 export async function runFlow(options: FlowOptions): Promise<number> {
@@ -29,5 +32,10 @@ export async function runFlow(options: FlowOptions): Promise<number> {
   await runPlan({ sessionId });
 
   // 5. Execute loop - work through tasks
-  return await run({ sessionId, maxIterations: options.maxIterations });
+  return await run({
+    sessionId,
+    maxIterations: options.maxIterations,
+    review: options.review,
+    verify: options.verify,
+  });
 }

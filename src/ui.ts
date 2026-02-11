@@ -58,3 +58,44 @@ export function showIteration(opts: IterationOptions): void {
 
   console.log(color(output));
 }
+
+export function showVerification(
+  attempt: number,
+  maxAttempts: number,
+  mode: string,
+): void {
+  banner(
+    'Verification',
+    `Attempt ${attempt}/${maxAttempts} (${mode} mode)`,
+    'magenta',
+  );
+}
+
+export function verificationPassed(): void {
+  message(chalk.green, 'Verification PASSED');
+}
+
+export function verificationFailed(feedback: string): void {
+  message(chalk.red, 'Verification FAILED');
+  // Show a brief summary of issues if present
+  const issuesMatch = feedback.match(/### Issues Found\n([\s\S]*?)(?:\n##|$)/);
+  if (issuesMatch) {
+    console.log(chalk.red(issuesMatch[1].trim()));
+  }
+}
+
+export function showReview(attempt: number, maxAttempts: number): void {
+  banner('Code Review', `Attempt ${attempt}/${maxAttempts}`, 'magenta');
+}
+
+export function reviewPassed(): void {
+  message(chalk.green, 'Code Review PASSED');
+}
+
+export function reviewFailed(feedback: string): void {
+  message(chalk.red, 'Code Review FAILED');
+  const issuesMatch = feedback.match(/### Issues Found\n([\s\S]*?)(?:\n##|$)/);
+  if (issuesMatch) {
+    console.log(chalk.red(issuesMatch[1].trim()));
+  }
+}

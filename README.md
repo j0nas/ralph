@@ -199,7 +199,50 @@ ralph     # "Add payment processing"
 | 0 | Task completed (DONE status) |
 | 1 | Task blocked or error |
 | 2 | Max iterations reached |
+| 3 | Verification exhausted (all attempts failed) |
+| 4 | Code review exhausted (all attempts failed) |
 | 130 | Interrupted (Ctrl+C) |
+
+### Done Gate: Code Review + Verification
+
+When the developer marks the task as DONE, Ralph runs a two-stage gate before accepting completion:
+
+**Stage 1: Code Review (white-box)**
+A reviewer agent with full source access runs type-checking, linting, tests, and checks implementation completeness against the task spec. This catches code-level issues cheaply before they waste a black-box verifier attempt. Up to 2 attempts.
+
+**Stage 2: Verification (black-box)**
+A verifier agent with no source access tests the work through the browser (Playwright) or CLI commands. This catches cases where the developer claims completion but the feature doesn't actually work. Up to 3 attempts.
+
+The pipeline: Developer says DONE → Code Review → if PASS → Verification → if PASS → exit 0
+
+If either stage fails, feedback is passed back to the developer for another iteration. If a stage exhausts its attempts, the session is marked blocked.
+
+**Verification modes:**
+
+During planning, Claude writes a `## Verification` section into the session file:
+
+```markdown
+## Verification
+mode: browser
+entry: http://localhost:5173
+```
+
+| Mode | Interface | Tools |
+|------|-----------|-------|
+| `browser` | Playwright (navigate, click, type) | `mcp__plugin_playwright_playwright__*` |
+| `cli` | Shell commands (restricted to specified prefixes) | `Bash(<prefix>:*)` |
+| `none` | Skip verification | — |
+
+The developer agent maintains the `## Verification` section during execution — if the dev server port changes, the entry point gets updated automatically.
+
+**Opting out:**
+
+```bash
+ralph start --no-verify     # Disable both code review and verification
+ralph start --no-review     # Disable code review only (verification still runs)
+ralph resume <id> --no-verify
+ralph resume <id> --no-review
+```
 
 ## Tips
 

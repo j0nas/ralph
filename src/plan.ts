@@ -42,6 +42,19 @@ Add these sections after the Task section:
 - [ ] [Step 3 - specific and actionable]
 - [ ] [Final verification - run tests, verify all success criteria]
 
+## Verification
+
+[How should a black-box tester with no source code access verify the completed work?]
+- Web application or UI → mode: browser, entry: <URL where it will be served>
+- CLI tool or script → mode: cli, entry: <command name or prefix>
+- No meaningful black-box test possible → mode: none
+
+Example:
+\`\`\`
+mode: browser
+entry: http://localhost:5173
+\`\`\`
+
 ## Notes
 
 [Any important decisions, constraints, or context for future iterations]

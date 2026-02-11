@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import type { ReviewConfig, VerifyConfig } from './config.js';
 import { run } from './loop.js';
 import {
   getSessionWorkingDirectory,
@@ -11,10 +12,12 @@ export interface ResumeOptions {
   sessionId: string;
   maxIterations: number;
   message?: string;
+  review?: ReviewConfig;
+  verify?: VerifyConfig;
 }
 
 export async function runResume(options: ResumeOptions): Promise<number> {
-  const { sessionId, maxIterations, message } = options;
+  const { sessionId, maxIterations, message, review, verify } = options;
 
   // Check if session exists
   if (!(await sessionExists(sessionId))) {
@@ -50,5 +53,5 @@ export async function runResume(options: ResumeOptions): Promise<number> {
   }
 
   // Resume the execution loop
-  return run({ sessionId, maxIterations, message });
+  return run({ sessionId, maxIterations, message, review, verify });
 }

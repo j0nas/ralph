@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { runClaude } from './claude.js';
 import { type Config, EXIT_CODES } from './config.js';
+import { runReview } from './review.js';
 import {
   getSessionPath,
   parseFrontMatter,
@@ -16,6 +17,7 @@ import {
   success,
   warning,
 } from './ui.js';
+import { runVerification } from './verify.js';
 
 function banner(): void {
   baseBanner('Ralph', 'Claude Code in a Loop', 'blue');
@@ -25,7 +27,14 @@ function showConfig(cfg: Config): void {
   const sessionPath = getSessionPath(cfg.sessionId);
   console.log(`\nSession:         ${chalk.green(cfg.sessionId)}`);
   console.log(`Session file:    ${chalk.dim(sessionPath)}`);
-  console.log(`Max iterations:  ${chalk.green(cfg.maxIterations)}\n`);
+  console.log(`Max iterations:  ${chalk.green(cfg.maxIterations)}`);
+  if (cfg.review) {
+    console.log(`Code review:     ${chalk.magenta('enabled')}`);
+  }
+  if (cfg.verify) {
+    console.log(`Verification:    ${chalk.magenta('enabled')}`);
+  }
+  console.log();
 }
 
 function formatDuration(ms: number): string {
@@ -100,6 +109,8 @@ Status meanings:
 
 IMPORTANT: Do NOT modify the YAML front matter between the \`---\` markers at the top of the session file. This is managed by the CLI.
 
+Keep the \`## Verification\` section in the session file up to date. If you start a dev server on a different port, or the entry point changes, update the \`entry:\` line so the verifier can find the running application.
+
 Do NOT try to complete multiple tasks in one iteration. Fresh context per iteration is the whole point.
 </instructions>`;
 }
@@ -147,6 +158,110 @@ export async function run(config: Config): Promise<number> {
       const status = await checkStatus(config.sessionId);
       const totalElapsed = formatDuration(Date.now() - sessionStart);
       if (status === 'done') {
+        // Done-gate: code review (white-box) then verification (black-box)
+
+        // Stage 1: Code review
+        if (config.review) {
+          const fm = parseFrontMatter(await readSession(config.sessionId));
+          const reviewAttempts = fm?.reviewAttempts ?? 0;
+
+          if (reviewAttempts >= config.review.maxAttempts) {
+            await updateSessionFrontMatter(config.sessionId, {
+              stage: 'blocked',
+            });
+            error(
+              `Code review exhausted after ${reviewAttempts} attempt(s) (Total: ${totalElapsed})`,
+            );
+            console.log(
+              chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
+            );
+            return EXIT_CODES.REVIEW_EXHAUSTED;
+          }
+
+          const reviewResult = await runReview(config.sessionId, config.review);
+          if (!reviewResult.passed) {
+            const postFm = parseFrontMatter(
+              await readSession(config.sessionId),
+            );
+            if ((postFm?.reviewAttempts ?? 0) >= config.review.maxAttempts) {
+              await updateSessionFrontMatter(config.sessionId, {
+                stage: 'blocked',
+              });
+              error(
+                `Code review exhausted after ${postFm?.reviewAttempts} attempt(s) (Total: ${totalElapsed})`,
+              );
+              console.log(
+                chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
+              );
+              return EXIT_CODES.REVIEW_EXHAUSTED;
+            }
+
+            // Write feedback and continue — builder will see it next iteration
+            const feedbackContent = await readSession(config.sessionId);
+            const withFeedback = `${feedbackContent}\n\n## Review Feedback (Done Gate)\n${reviewResult.feedback}\n`;
+            await writeSession(config.sessionId, withFeedback);
+
+            await updateSessionFrontMatter(config.sessionId, {
+              stage: 'running',
+            });
+            warning('Code review failed — continuing with feedback');
+            continue;
+          }
+        }
+
+        // Stage 2: Black-box verification
+        if (config.verify) {
+          const fm = parseFrontMatter(await readSession(config.sessionId));
+          const attempts = fm?.verificationAttempts ?? 0;
+
+          if (attempts >= config.verify.maxAttempts) {
+            await updateSessionFrontMatter(config.sessionId, {
+              stage: 'blocked',
+            });
+            error(
+              `Verification exhausted after ${attempts} attempt(s) (Total: ${totalElapsed})`,
+            );
+            console.log(
+              chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
+            );
+            return EXIT_CODES.VERIFICATION_EXHAUSTED;
+          }
+
+          const result = await runVerification(config.sessionId, config.verify);
+          if (!result.passed) {
+            // Check if we've now exhausted attempts
+            const postFm = parseFrontMatter(
+              await readSession(config.sessionId),
+            );
+            if (
+              (postFm?.verificationAttempts ?? 0) >= config.verify.maxAttempts
+            ) {
+              await updateSessionFrontMatter(config.sessionId, {
+                stage: 'blocked',
+              });
+              error(
+                `Verification exhausted after ${postFm?.verificationAttempts} attempt(s) (Total: ${totalElapsed})`,
+              );
+              console.log(
+                chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
+              );
+              return EXIT_CODES.VERIFICATION_EXHAUSTED;
+            }
+
+            // Write feedback and continue — builder will see it next iteration
+            const feedbackContent = await readSession(config.sessionId);
+            const withFeedback = `${feedbackContent}\n\n## Verification Feedback (Done Gate)\n${result.feedback}\n`;
+            await writeSession(config.sessionId, withFeedback);
+
+            // Revert status so loop continues
+            await updateSessionFrontMatter(config.sessionId, {
+              stage: 'running',
+            });
+            warning('Verification failed — continuing with feedback');
+            continue;
+          }
+        }
+
         await updateSessionFrontMatter(config.sessionId, { stage: 'done' });
         success(
           `Task completed after ${i} iteration(s)! (Total: ${totalElapsed})`,
