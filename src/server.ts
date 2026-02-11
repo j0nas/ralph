@@ -1,19 +1,45 @@
 import type { ChildProcess } from 'node:child_process';
-import { spawn } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
+
+const SHELL_OPERATORS = /&&|\|\||[|;>]/;
 
 /**
  * Start a server process in the background.
+ * Detects shell operators and uses shell mode when needed.
  * Returns the child process handle for later cleanup.
  */
 export function startServer(command: string, cwd: string): ChildProcess {
-  const [cmd, ...args] = command.split(/\s+/);
-  const child = spawn(cmd, args, {
-    cwd,
-    stdio: 'ignore',
-    detached: true,
-  });
+  let child: ChildProcess;
+
+  if (SHELL_OPERATORS.test(command)) {
+    child = spawn(command, {
+      cwd,
+      stdio: 'ignore',
+      detached: true,
+      shell: true,
+    });
+  } else {
+    const [cmd, ...args] = command.split(/\s+/);
+    child = spawn(cmd, args, {
+      cwd,
+      stdio: 'ignore',
+      detached: true,
+    });
+  }
+
   child.unref();
   return child;
+}
+
+/**
+ * Run a cleanup/stop command synchronously (e.g., `docker compose down`).
+ */
+export function runStopCommand(command: string, cwd: string): void {
+  try {
+    execSync(command, { cwd, stdio: 'ignore', timeout: 30_000 });
+  } catch {
+    // Non-fatal — cleanup is best-effort
+  }
 }
 
 /**

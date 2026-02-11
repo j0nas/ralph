@@ -256,6 +256,7 @@ export interface VerificationSection {
   mode: 'browser' | 'cli';
   entry: string;
   start?: string;
+  stop?: string;
 }
 
 export function extractVerificationSection(
@@ -270,6 +271,7 @@ export function extractVerificationSection(
   const modeMatch = section.match(/^mode:\s*(.+)$/m);
   const entryMatch = section.match(/^entry:\s*(.+)$/m);
   const startMatch = section.match(/^start:\s*(.+)$/m);
+  const stopMatch = section.match(/^stop:\s*(.+)$/m);
 
   if (!modeMatch) return null;
 
@@ -283,5 +285,6 @@ export function extractVerificationSection(
     mode,
     entry,
     start: startMatch?.[1]?.trim(),
+    stop: stopMatch?.[1]?.trim(),
   };
 }

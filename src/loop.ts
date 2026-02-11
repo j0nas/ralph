@@ -5,7 +5,12 @@ import chalk from 'chalk';
 import { runClaude } from './claude.js';
 import { type Config, EXIT_CODES } from './config.js';
 import { runReview } from './review.js';
-import { startServer, stopServer, waitForServer } from './server.js';
+import {
+  runStopCommand,
+  startServer,
+  stopServer,
+  waitForServer,
+} from './server.js';
 import {
   extractVerificationSection,
   getSessionPath,
@@ -18,6 +23,8 @@ import { checkStatus } from './status.js';
 import {
   banner as baseBanner,
   error,
+  printRunSummary,
+  type RunStatus,
   showIteration,
   success,
   warning,
@@ -79,10 +86,12 @@ function showConfig(cfg: Config): void {
 }
 
 function formatDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  if (minutes > 0) return `${minutes}m ${remainingSeconds}s`;
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
   return `${seconds}s`;
 }
 
@@ -150,13 +159,23 @@ Status meanings:
 
 IMPORTANT: Do NOT modify the YAML front matter between the \`---\` markers at the top of the session file. This is managed by the CLI.
 
-Keep the \`## Verification\` section in the session file up to date. If you start a dev server on a different port, or the entry point changes, update the \`entry:\` line so the verifier can find the running application.
+Keep the \`## Verification\` section in the session file up to date. Copy ALL fields from the task spec's Verification section (mode, entry, start, stop) and update them if anything changes (e.g., a different port). The \`stop:\` field is used for cleanup after verification (e.g., \`stop: docker compose down\`) — do not omit it.
 
 Do NOT stop or kill dev servers before exiting. The CLI manages server lifecycle for verification — if you kill the server, the black-box verifier won't be able to test the application. Leave servers running when you exit.
 
 Clean up after yourself: delete any temporary files, screenshots, or test artifacts you created during the iteration. The working directory should only contain project files when you're done.
 
 Do NOT try to complete multiple tasks in one iteration. Fresh context per iteration is the whole point.
+
+Before setting Status to DONE, you MUST verify your own work:
+1. Run the project's build command (e.g., npm run build) — must pass
+2. Run type-checking if applicable (e.g., npx tsc --noEmit) — must pass
+3. Run tests if they exist (e.g., npm test) — must pass
+4. Confirm each success criterion in the Task section is met
+5. Remaining list should be empty
+
+Setting DONE triggers automated code review and black-box verification.
+These gates have a limited attempt budget — premature DONE wastes attempts.
 </instructions>`;
 }
 
@@ -165,6 +184,34 @@ export async function run(config: Config): Promise<number> {
   showConfig(config);
 
   const sessionStart = Date.now();
+  const sessionPath = getSessionPath(config.sessionId);
+  const resumeCmd = `ralph resume ${config.sessionId}`;
+
+  // Stats for the run summary
+  const stats = {
+    buildIterations: 0,
+    doneGateTriggers: 0,
+    reviewRuns: 0,
+    reviewPasses: 0,
+    verifyRuns: 0,
+    verifyPasses: 0,
+  };
+
+  function buildSummary(status: RunStatus): void {
+    printRunSummary({
+      status,
+      buildIterations: stats.buildIterations,
+      doneGateTriggers: stats.doneGateTriggers,
+      totalIterations: stats.buildIterations + stats.doneGateTriggers,
+      duration: formatDuration(Date.now() - sessionStart),
+      reviewRuns: stats.reviewRuns,
+      reviewPasses: stats.reviewPasses,
+      verifyRuns: stats.verifyRuns,
+      verifyPasses: stats.verifyPasses,
+      sessionPath,
+      resumeCommand: status === 'completed' ? undefined : resumeCmd,
+    });
+  }
 
   const handleInterrupt = () => {
     const elapsed = formatDuration(Date.now() - sessionStart);
@@ -173,8 +220,6 @@ export async function run(config: Config): Promise<number> {
   };
   process.on('SIGINT', handleInterrupt);
   process.on('SIGTERM', handleInterrupt);
-
-  const sessionPath = getSessionPath(config.sessionId);
 
   // Set stage to running at loop start
   await updateSessionFrontMatter(config.sessionId, { stage: 'running' });
@@ -203,6 +248,8 @@ export async function run(config: Config): Promise<number> {
       const status = await checkStatus(config.sessionId);
       const totalElapsed = formatDuration(Date.now() - sessionStart);
       if (status === 'done') {
+        stats.doneGateTriggers++;
+
         // Done-gate: code review (white-box) then verification (black-box)
         // If the project has a start command, manage the server lifecycle
         const doneContent = await readSession(config.sessionId);
@@ -235,12 +282,11 @@ export async function run(config: Config): Promise<number> {
               error(
                 `Code review exhausted after ${reviewAttempts} attempt(s) (Total: ${totalElapsed})`,
               );
-              console.log(
-                chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
-              );
+              buildSummary('review_exhausted');
               return EXIT_CODES.REVIEW_EXHAUSTED;
             }
 
+            stats.reviewRuns++;
             const reviewResult = await runReview(
               config.sessionId,
               config.review,
@@ -256,9 +302,7 @@ export async function run(config: Config): Promise<number> {
                 error(
                   `Code review exhausted after ${postFm?.reviewAttempts} attempt(s) (Total: ${totalElapsed})`,
                 );
-                console.log(
-                  chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
-                );
+                buildSummary('review_exhausted');
                 return EXIT_CODES.REVIEW_EXHAUSTED;
               }
 
@@ -273,6 +317,7 @@ export async function run(config: Config): Promise<number> {
               warning('Code review failed — continuing with feedback');
               continue;
             }
+            stats.reviewPasses++;
           }
 
           // Stage 2: Black-box verification
@@ -287,12 +332,11 @@ export async function run(config: Config): Promise<number> {
               error(
                 `Verification exhausted after ${attempts} attempt(s) (Total: ${totalElapsed})`,
               );
-              console.log(
-                chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
-              );
+              buildSummary('verification_exhausted');
               return EXIT_CODES.VERIFICATION_EXHAUSTED;
             }
 
+            stats.verifyRuns++;
             const result = await runVerification(
               config.sessionId,
               config.verify,
@@ -311,9 +355,7 @@ export async function run(config: Config): Promise<number> {
                 error(
                   `Verification exhausted after ${postFm?.verificationAttempts} attempt(s) (Total: ${totalElapsed})`,
                 );
-                console.log(
-                  chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
-                );
+                buildSummary('verification_exhausted');
                 return EXIT_CODES.VERIFICATION_EXHAUSTED;
               }
 
@@ -329,27 +371,37 @@ export async function run(config: Config): Promise<number> {
               warning('Verification failed — continuing with feedback');
               continue;
             }
+            stats.verifyPasses++;
           }
 
           await updateSessionFrontMatter(config.sessionId, { stage: 'done' });
           success(
             `Task completed after ${i} iteration(s)! (Total: ${totalElapsed})`,
           );
+          buildSummary('completed');
           return EXIT_CODES.SUCCESS;
         } finally {
           if (serverProc) {
             stopServer(serverProc);
             console.log(chalk.dim('Server stopped'));
           }
+          if (verifySection?.stop) {
+            console.log(
+              chalk.dim(`Running stop command: ${verifySection.stop}`),
+            );
+            runStopCommand(verifySection.stop, process.cwd());
+          }
           await cleanVerificationArtifacts(process.cwd());
         }
+      } else {
+        stats.buildIterations++;
       }
       if (status === 'blocked') {
         await updateSessionFrontMatter(config.sessionId, { stage: 'blocked' });
         warning(
           `Task blocked - human intervention needed (Total: ${totalElapsed})`,
         );
-        console.log(chalk.dim(`Resume with: ralph resume ${config.sessionId}`));
+        buildSummary('blocked');
         return EXIT_CODES.BLOCKED;
       }
     }
@@ -358,7 +410,7 @@ export async function run(config: Config): Promise<number> {
     error(
       `Max iterations (${config.maxIterations}) reached (Total: ${totalElapsed})`,
     );
-    console.log(chalk.dim(`Resume with: ralph resume ${config.sessionId}`));
+    buildSummary('max_iterations');
     return EXIT_CODES.MAX_ITERATIONS;
   } finally {
     process.off('SIGINT', handleInterrupt);
