@@ -47,6 +47,8 @@ Read the task description carefully. For **each** stated requirement or success 
 
 If a requirement has no corresponding implementation, that is a finding.
 
+**Environment-specific deviations are not spec violations.** If a spec says "use port 5432" but the developer used port 5434 because 5432 was occupied — and the choice is internally consistent (docker-compose, connection string, and app all agree) and documented in the session notes — that is an acceptable adaptation, not a missing requirement. Judge whether the *intent* of each requirement is met, not whether arbitrary values (ports, paths, versions) match literally. The verifier tests the app through its entry point (`http://localhost:3000`), not by connecting to backing services directly.
+
 ### Step 3 — Scan for leftover artifacts
 
 Search for signs of incomplete or careless work:
@@ -84,7 +86,7 @@ End your response with exactly one of:
 
 Severity guide:
 - **[BUILD]** — toolchain failure (type error, lint error, test failure, build failure). Always a FAIL.
-- **[MISSING]** — a requirement from the task spec has no implementation. Always a FAIL.
+- **[MISSING]** — a requirement from the task spec has no implementation. Always a FAIL. Note: environment-specific adaptations (different port, path, etc.) that are internally consistent and documented are NOT missing requirements.
 - **[TEST]** — tests fail, or new functionality has no test coverage when the project has a test suite. Always a FAIL.
 - **[ARTIFACT]** — leftover debug code, TODOs, or dead code. FAIL only if it would affect production behavior; otherwise note it but still PASS.
 
