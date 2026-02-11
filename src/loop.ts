@@ -1,4 +1,6 @@
 import type { ChildProcess } from 'node:child_process';
+import { readdir, rm, stat } from 'node:fs/promises';
+import { join } from 'node:path';
 import chalk from 'chalk';
 import { runClaude } from './claude.js';
 import { type Config, EXIT_CODES } from './config.js';
@@ -21,6 +23,42 @@ import {
   warning,
 } from './ui.js';
 import { runVerification } from './verify.js';
+
+/**
+ * Clean up artifacts left by the verification step (screenshots, .playwright-mcp).
+ * The browser verifier only has Playwright tools and can't delete files itself.
+ */
+async function cleanVerificationArtifacts(cwd: string): Promise<void> {
+  try {
+    const entries = await readdir(cwd);
+    const removals: Promise<void>[] = [];
+
+    for (const entry of entries) {
+      const full = join(cwd, entry);
+      // Screenshots from Playwright's take_screenshot
+      if (/\.(png|jpeg)$/i.test(entry)) {
+        const info = await stat(full);
+        // Only delete files, not directories
+        if (info.isFile()) {
+          removals.push(rm(full));
+        }
+      }
+      // Playwright MCP working directory
+      if (entry === '.playwright-mcp') {
+        removals.push(rm(full, { recursive: true }));
+      }
+    }
+
+    if (removals.length > 0) {
+      await Promise.all(removals);
+      console.log(
+        chalk.dim(`Cleaned ${removals.length} verification artifact(s)`),
+      );
+    }
+  } catch {
+    // Non-fatal — don't fail the run over cleanup
+  }
+}
 
 function banner(): void {
   baseBanner('Ralph', 'Claude Code in a Loop', 'blue');
@@ -303,6 +341,7 @@ export async function run(config: Config): Promise<number> {
             stopServer(serverProc);
             console.log(chalk.dim('Server stopped'));
           }
+          await cleanVerificationArtifacts(process.cwd());
         }
       }
       if (status === 'blocked') {
