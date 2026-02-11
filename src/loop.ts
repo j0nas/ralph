@@ -1,8 +1,11 @@
+import type { ChildProcess } from 'node:child_process';
 import chalk from 'chalk';
 import { runClaude } from './claude.js';
 import { type Config, EXIT_CODES } from './config.js';
 import { runReview } from './review.js';
+import { startServer, stopServer, waitForServer } from './server.js';
 import {
+  extractVerificationSection,
   getSessionPath,
   parseFrontMatter,
   readSession,
@@ -159,36 +162,36 @@ export async function run(config: Config): Promise<number> {
       const totalElapsed = formatDuration(Date.now() - sessionStart);
       if (status === 'done') {
         // Done-gate: code review (white-box) then verification (black-box)
+        // If the project has a start command, manage the server lifecycle
+        const doneContent = await readSession(config.sessionId);
+        const verifySection = extractVerificationSection(doneContent);
+        let serverProc: ChildProcess | undefined;
 
-        // Stage 1: Code review
-        if (config.review) {
-          const fm = parseFrontMatter(await readSession(config.sessionId));
-          const reviewAttempts = fm?.reviewAttempts ?? 0;
-
-          if (reviewAttempts >= config.review.maxAttempts) {
-            await updateSessionFrontMatter(config.sessionId, {
-              stage: 'blocked',
-            });
-            error(
-              `Code review exhausted after ${reviewAttempts} attempt(s) (Total: ${totalElapsed})`,
-            );
+        if (verifySection?.start) {
+          console.log(chalk.dim(`Starting server: ${verifySection.start}`));
+          serverProc = startServer(verifySection.start, process.cwd());
+          const ready = await waitForServer(verifySection.entry);
+          if (!ready) {
             console.log(
-              chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
+              chalk.yellow(
+                'Server did not respond in time — proceeding anyway',
+              ),
             );
-            return EXIT_CODES.REVIEW_EXHAUSTED;
           }
+        }
 
-          const reviewResult = await runReview(config.sessionId, config.review);
-          if (!reviewResult.passed) {
-            const postFm = parseFrontMatter(
-              await readSession(config.sessionId),
-            );
-            if ((postFm?.reviewAttempts ?? 0) >= config.review.maxAttempts) {
+        try {
+          // Stage 1: Code review
+          if (config.review) {
+            const fm = parseFrontMatter(await readSession(config.sessionId));
+            const reviewAttempts = fm?.reviewAttempts ?? 0;
+
+            if (reviewAttempts >= config.review.maxAttempts) {
               await updateSessionFrontMatter(config.sessionId, {
                 stage: 'blocked',
               });
               error(
-                `Code review exhausted after ${postFm?.reviewAttempts} attempt(s) (Total: ${totalElapsed})`,
+                `Code review exhausted after ${reviewAttempts} attempt(s) (Total: ${totalElapsed})`,
               );
               console.log(
                 chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
@@ -196,51 +199,51 @@ export async function run(config: Config): Promise<number> {
               return EXIT_CODES.REVIEW_EXHAUSTED;
             }
 
-            // Write feedback and continue — builder will see it next iteration
-            const feedbackContent = await readSession(config.sessionId);
-            const withFeedback = `${feedbackContent}\n\n## Review Feedback (Done Gate)\n${reviewResult.feedback}\n`;
-            await writeSession(config.sessionId, withFeedback);
+            const reviewResult = await runReview(
+              config.sessionId,
+              config.review,
+            );
+            if (!reviewResult.passed) {
+              const postFm = parseFrontMatter(
+                await readSession(config.sessionId),
+              );
+              if ((postFm?.reviewAttempts ?? 0) >= config.review.maxAttempts) {
+                await updateSessionFrontMatter(config.sessionId, {
+                  stage: 'blocked',
+                });
+                error(
+                  `Code review exhausted after ${postFm?.reviewAttempts} attempt(s) (Total: ${totalElapsed})`,
+                );
+                console.log(
+                  chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
+                );
+                return EXIT_CODES.REVIEW_EXHAUSTED;
+              }
 
-            await updateSessionFrontMatter(config.sessionId, {
-              stage: 'running',
-            });
-            warning('Code review failed — continuing with feedback');
-            continue;
+              // Write feedback and continue — builder will see it next iteration
+              const feedbackContent = await readSession(config.sessionId);
+              const withFeedback = `${feedbackContent}\n\n## Review Feedback (Done Gate)\n${reviewResult.feedback}\n`;
+              await writeSession(config.sessionId, withFeedback);
+
+              await updateSessionFrontMatter(config.sessionId, {
+                stage: 'running',
+              });
+              warning('Code review failed — continuing with feedback');
+              continue;
+            }
           }
-        }
 
-        // Stage 2: Black-box verification
-        if (config.verify) {
-          const fm = parseFrontMatter(await readSession(config.sessionId));
-          const attempts = fm?.verificationAttempts ?? 0;
+          // Stage 2: Black-box verification
+          if (config.verify) {
+            const fm = parseFrontMatter(await readSession(config.sessionId));
+            const attempts = fm?.verificationAttempts ?? 0;
 
-          if (attempts >= config.verify.maxAttempts) {
-            await updateSessionFrontMatter(config.sessionId, {
-              stage: 'blocked',
-            });
-            error(
-              `Verification exhausted after ${attempts} attempt(s) (Total: ${totalElapsed})`,
-            );
-            console.log(
-              chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
-            );
-            return EXIT_CODES.VERIFICATION_EXHAUSTED;
-          }
-
-          const result = await runVerification(config.sessionId, config.verify);
-          if (!result.passed) {
-            // Check if we've now exhausted attempts
-            const postFm = parseFrontMatter(
-              await readSession(config.sessionId),
-            );
-            if (
-              (postFm?.verificationAttempts ?? 0) >= config.verify.maxAttempts
-            ) {
+            if (attempts >= config.verify.maxAttempts) {
               await updateSessionFrontMatter(config.sessionId, {
                 stage: 'blocked',
               });
               error(
-                `Verification exhausted after ${postFm?.verificationAttempts} attempt(s) (Total: ${totalElapsed})`,
+                `Verification exhausted after ${attempts} attempt(s) (Total: ${totalElapsed})`,
               );
               console.log(
                 chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
@@ -248,25 +251,55 @@ export async function run(config: Config): Promise<number> {
               return EXIT_CODES.VERIFICATION_EXHAUSTED;
             }
 
-            // Write feedback and continue — builder will see it next iteration
-            const feedbackContent = await readSession(config.sessionId);
-            const withFeedback = `${feedbackContent}\n\n## Verification Feedback (Done Gate)\n${result.feedback}\n`;
-            await writeSession(config.sessionId, withFeedback);
+            const result = await runVerification(
+              config.sessionId,
+              config.verify,
+            );
+            if (!result.passed) {
+              // Check if we've now exhausted attempts
+              const postFm = parseFrontMatter(
+                await readSession(config.sessionId),
+              );
+              if (
+                (postFm?.verificationAttempts ?? 0) >= config.verify.maxAttempts
+              ) {
+                await updateSessionFrontMatter(config.sessionId, {
+                  stage: 'blocked',
+                });
+                error(
+                  `Verification exhausted after ${postFm?.verificationAttempts} attempt(s) (Total: ${totalElapsed})`,
+                );
+                console.log(
+                  chalk.dim(`Resume with: ralph resume ${config.sessionId}`),
+                );
+                return EXIT_CODES.VERIFICATION_EXHAUSTED;
+              }
 
-            // Revert status so loop continues
-            await updateSessionFrontMatter(config.sessionId, {
-              stage: 'running',
-            });
-            warning('Verification failed — continuing with feedback');
-            continue;
+              // Write feedback and continue — builder will see it next iteration
+              const feedbackContent = await readSession(config.sessionId);
+              const withFeedback = `${feedbackContent}\n\n## Verification Feedback (Done Gate)\n${result.feedback}\n`;
+              await writeSession(config.sessionId, withFeedback);
+
+              // Revert status so loop continues
+              await updateSessionFrontMatter(config.sessionId, {
+                stage: 'running',
+              });
+              warning('Verification failed — continuing with feedback');
+              continue;
+            }
+          }
+
+          await updateSessionFrontMatter(config.sessionId, { stage: 'done' });
+          success(
+            `Task completed after ${i} iteration(s)! (Total: ${totalElapsed})`,
+          );
+          return EXIT_CODES.SUCCESS;
+        } finally {
+          if (serverProc) {
+            stopServer(serverProc);
+            console.log(chalk.dim('Server stopped'));
           }
         }
-
-        await updateSessionFrontMatter(config.sessionId, { stage: 'done' });
-        success(
-          `Task completed after ${i} iteration(s)! (Total: ${totalElapsed})`,
-        );
-        return EXIT_CODES.SUCCESS;
       }
       if (status === 'blocked') {
         await updateSessionFrontMatter(config.sessionId, { stage: 'blocked' });

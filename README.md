@@ -172,6 +172,8 @@ npm link
 
 ```bash
 ralph                         # Full interactive workflow (default)
+ralph run <task>              # Non-interactive: skip init/refine, go straight to plan + execute
+ralph run task.md             # Read task from a markdown file
 ralph resume <id>             # Resume a blocked or interrupted session
 ralph resume <id> "message"   # Resume with context for Claude
 ralph list                    # List all sessions
@@ -179,6 +181,23 @@ ralph -m 10                   # With custom max iterations (default: 50)
 ```
 
 One command runs the complete workflow. Use `ralph list` to see existing sessions and `ralph resume <id>` to continue where you left off.
+
+### Non-Interactive Mode
+
+`ralph run` skips the interactive init and refine phases — it takes a task spec directly and goes straight to planning and execution. This is useful for programmatic usage (e.g. calling ralph from another script or Claude session).
+
+```bash
+# Inline task
+ralph run "Create a hello world index.html" -m 5
+
+# Task from file (must end in .md)
+ralph run task.md -m 20
+
+# With flags
+ralph run task.md --no-verify --no-review -m 10
+```
+
+The task content becomes the `## Task` section in the session file. For best results, write a detailed spec with clear success criteria — the same quality you'd get from the interactive init phase.
 
 ### Parallel Work
 
@@ -224,6 +243,7 @@ During planning, Claude writes a `## Verification` section into the session file
 ```markdown
 ## Verification
 mode: browser
+start: npm start
 entry: http://localhost:5173
 ```
 
@@ -232,6 +252,8 @@ entry: http://localhost:5173
 | `browser` | Playwright (navigate, click, type) | `mcp__plugin_playwright_playwright__*` |
 | `cli` | Shell commands (restricted to specified prefixes) | `Bash(<prefix>:*)` |
 | `none` | Skip verification | — |
+
+The `start` field tells Ralph how to start the server for browser verification. Ralph automatically starts the server before the done gate (review + verification) and stops it after. This prevents verification failures from the server not running.
 
 The developer agent maintains the `## Verification` section during execution — if the dev server port changes, the entry point gets updated automatically.
 

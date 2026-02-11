@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
+import { readFile } from 'node:fs/promises';
 import { program } from 'commander';
 import type { ReviewConfig, VerifyConfig } from './config.js';
-import { runFlow } from './flow.js';
-import { ensureClaudeInstalled } from './fs.js';
+import { runFlow, runNonInteractive } from './flow.js';
+import { ensureClaudeInstalled, exists } from './fs.js';
 import { runList } from './list.js';
 import { runResume } from './resume.js';
 
@@ -31,6 +32,37 @@ program
         : DEFAULT_REVIEW;
     process.exit(
       await runFlow({
+        maxIterations: parseInt(opts.maxIterations, 10),
+        review,
+        verify,
+      }),
+    );
+  });
+
+// Run command (non-interactive)
+program
+  .command('run <task>')
+  .description('Run a task non-interactively (no init/refine phases)')
+  .option('-m, --max-iterations <n>', 'Max iterations', '500')
+  .option('--no-verify', 'Disable automatic verification and code review')
+  .option('--no-review', 'Disable code review only')
+  .action(async (task, opts) => {
+    ensureClaudeInstalled();
+
+    // Resolve task: if it's a path to an existing .md file, read it
+    let taskContent = task;
+    if (task.endsWith('.md') && (await exists(task))) {
+      taskContent = await readFile(task, 'utf-8');
+    }
+
+    const verify = opts.verify === false ? undefined : DEFAULT_VERIFY;
+    const review =
+      opts.verify === false || opts.review === false
+        ? undefined
+        : DEFAULT_REVIEW;
+    process.exit(
+      await runNonInteractive({
+        task: taskContent,
         maxIterations: parseInt(opts.maxIterations, 10),
         review,
         verify,

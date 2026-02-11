@@ -102,8 +102,13 @@ export async function runReview(
   }
 
   // Restore stage to running
+  // Only count failed attempts toward the budget — passing reviews shouldn't
+  // consume retry slots (e.g. when verification fails after review passes)
   const postContent = await readSession(sessionId);
-  const restored = updateFrontMatter(postContent, { stage: 'running' });
+  const restored = updateFrontMatter(postContent, {
+    stage: 'running',
+    ...(passed ? { reviewAttempts: currentAttempts } : {}),
+  });
   await writeSession(sessionId, restored);
 
   return { passed, feedback: passed ? '' : output };

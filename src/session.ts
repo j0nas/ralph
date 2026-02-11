@@ -255,6 +255,7 @@ export function extractTaskSummary(content: string): {
 export interface VerificationSection {
   mode: 'browser' | 'cli';
   entry: string;
+  start?: string;
 }
 
 export function extractVerificationSection(
@@ -268,6 +269,7 @@ export function extractVerificationSection(
   const section = sectionMatch[1];
   const modeMatch = section.match(/^mode:\s*(.+)$/m);
   const entryMatch = section.match(/^entry:\s*(.+)$/m);
+  const startMatch = section.match(/^start:\s*(.+)$/m);
 
   if (!modeMatch) return null;
 
@@ -277,5 +279,9 @@ export function extractVerificationSection(
   const entry = entryMatch?.[1]?.trim();
   if (!entry) return null;
 
-  return { mode, entry };
+  return {
+    mode,
+    entry,
+    start: startMatch?.[1]?.trim(),
+  };
 }
