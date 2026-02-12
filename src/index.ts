@@ -8,8 +8,8 @@ import { ensureClaudeInstalled, exists } from './fs.js';
 import { runList } from './list.js';
 import { runResume } from './resume.js';
 
-const DEFAULT_VERIFY: VerifyConfig = { trigger: 'done', maxAttempts: 3 };
-const DEFAULT_REVIEW: ReviewConfig = { trigger: 'done', maxAttempts: 2 };
+const DEFAULT_VERIFY: VerifyConfig = { trigger: 'done', maxAttempts: 5 };
+const DEFAULT_REVIEW: ReviewConfig = { trigger: 'done', maxAttempts: 5 };
 
 program
   .name('ralph')

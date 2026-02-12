@@ -157,17 +157,17 @@ Status meanings:
 - \`## Status: BLOCKED\` - Need human input to proceed
 - \`## Status: IN_PROGRESS\` - More work remains (default)
 
-IMPORTANT: Do NOT modify the YAML front matter between the \`---\` markers at the top of the session file. This is managed by the CLI.
+Do not modify the YAML front matter between the \`---\` markers at the top of the session file. This is managed by the CLI.
 
-Keep the \`## Verification\` section in the session file up to date. Copy ALL fields from the task spec's Verification section (mode, entry, start, stop) and update them if anything changes (e.g., a different port). The \`stop:\` field is used for cleanup after verification (e.g., \`stop: docker compose down\`) — do not omit it.
+Keep the \`## Verification\` section in the session file up to date. Copy all fields from the task spec's Verification section (mode, entry, start, stop) and update them if anything changes (e.g., a different port). The \`stop:\` field is used for cleanup after verification (e.g., \`stop: docker compose down\`) — do not omit it.
 
-Do NOT stop or kill dev servers before exiting. The CLI manages server lifecycle for verification — if you kill the server, the black-box verifier won't be able to test the application. Leave servers running when you exit.
+Do not stop or kill dev servers before exiting. The CLI manages server lifecycle for verification — if you kill the server, the black-box verifier won't be able to test the application. Leave servers running when you exit.
 
 Clean up after yourself: delete any temporary files, screenshots, or test artifacts you created during the iteration. The working directory should only contain project files when you're done.
 
-Do NOT try to complete multiple tasks in one iteration. Fresh context per iteration is the whole point.
+Complete one task per iteration, then exit. Fresh context per iteration is the whole point.
 
-Before setting Status to DONE, you MUST verify your own work:
+Before setting Status to DONE, verify your work:
 1. Run the project's build command (e.g., npm run build) — must pass
 2. Run type-checking if applicable (e.g., npx tsc --noEmit) — must pass
 3. Run tests if they exist (e.g., npm test) — must pass

@@ -16,9 +16,7 @@ The developer agent is a capable coder, but it works one iteration at a time wit
 
 - **Forgot to run the toolchain.** The developer may not have run `tsc`, the linter, or the test suite before claiming done. A broken build or failing test wastes a verifier attempt.
 - **Specification drift.** Over multiple iterations, the implementation may have drifted from what the task spec actually asked for. Features get partially implemented, edge cases from the spec get skipped.
-- **Leftover artifacts.** TODO comments, `console.log` debug lines, commented-out code, hardcoded test values — things left behind across iterations.
-
-Your job is to catch these specific failure modes, not to second-guess the developer's design or coding style.
+- **Poor integration with the existing codebase.** The developer sees one file at a time. It may introduce patterns inconsistent with the rest of the project, duplicate existing utilities, or structure code in ways that don't fit the architecture.
 
 ## Scope
 
@@ -47,27 +45,20 @@ Read the task description carefully. For **each** stated requirement or success 
 
 If a requirement has no corresponding implementation, that is a finding.
 
-**Environment-specific deviations are not spec violations.** If a spec says "use port 5432" but the developer used port 5434 because 5432 was occupied — and the choice is internally consistent (docker-compose, connection string, and app all agree) and documented in the session notes — that is an acceptable adaptation, not a missing requirement. Judge whether the *intent* of each requirement is met, not whether arbitrary values (ports, paths, versions) match literally. The verifier tests the app through its entry point (`http://localhost:3000`), not by connecting to backing services directly.
+**Environment-specific deviations are not spec violations.** If a spec says "use port 5432" but the developer used port 5434 because 5432 was occupied — and the choice is internally consistent (docker-compose, connection string, and app all agree) and documented in the session notes — that is an acceptable adaptation, not a missing requirement. Judge whether the _intent_ of each requirement is met, not whether arbitrary values (ports, paths, versions) match literally. The verifier tests the app through its entry point (`http://localhost:3000`), not by connecting to backing services directly.
 
-### Step 3 — Scan for leftover artifacts
+### Step 3 — Assess codebase integration
 
-Search for signs of incomplete or careless work:
+Look at how the new code fits into the existing project:
 
-```
-grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.ts" --include="*.js" --include="*.tsx" --include="*.jsx"
-grep -rn "console\.log" --include="*.ts" --include="*.js" --include="*.tsx" --include="*.jsx"
-```
-
-Adapt the file extensions to the project's language. Not every match is a problem — `console.log` in a CLI tool is expected. Use judgment.
-
-## What Is NOT Your Job
-
-- **Code style.** That's what linters enforce.
-- **Architectural opinions.** Review what was asked for, not what you'd prefer.
-- **Pre-existing issues.** Only review code the developer wrote or changed for this task.
-- **Runtime behavior.** The verifier tests that. Don't duplicate the work.
+- **Pattern consistency.** Does it follow the conventions already established in the codebase? (naming, file structure, error handling patterns, import style)
+- **Structural fit.** Is the code organized in a way that makes sense given the project's architecture? Are things in the right files/directories?
+- **Design issues.** Are there obvious problems — tight coupling, missing error handling for external calls, race conditions, or logic that will break under foreseeable conditions?
+- **Unnecessary complexity.** Could the same result be achieved more simply? Is the developer over-engineering or duplicating existing utilities?
 
 ## Verdict
+
+First, write your analysis following the three steps above. Then, after your analysis is complete, emit your verdict.
 
 End your response with exactly one of:
 
@@ -81,13 +72,14 @@ End your response with exactly one of:
 - [BUILD] tsc failed: Cannot find module './foo' (src/bar.ts:12)
 - [MISSING] Task requires pagination but no pagination logic exists
 - [TEST] 3 tests failing in auth.test.ts
-- [ARTIFACT] console.log debug line left in src/api.ts:47
+- [DESIGN] API handler mixes database queries with HTTP response formatting (advisory)
 ```
 
 Severity guide:
+
 - **[BUILD]** — toolchain failure (type error, lint error, test failure, build failure). Always a FAIL.
 - **[MISSING]** — a requirement from the task spec has no implementation. Always a FAIL. Note: environment-specific adaptations (different port, path, etc.) that are internally consistent and documented are NOT missing requirements.
 - **[TEST]** — tests fail, or new functionality has no test coverage when the project has a test suite. Always a FAIL.
-- **[ARTIFACT]** — leftover debug code, TODOs, or dead code. FAIL only if it would affect production behavior; otherwise note it but still PASS.
+- **[DESIGN]** — structural or integration issue. Note it with a brief explanation. Only FAIL if the issue is severe enough to cause problems at runtime or hinder maintainability. Minor design concerns should be noted but not block a PASS.
 
 Only verdict **PASS** if the toolchain passes and every requirement from the spec is implemented.

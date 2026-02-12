@@ -60,15 +60,17 @@ export function extractVerificationContext(
 }
 
 function buildUserPrompt(context: VerificationContext): string {
-  return `ALL success criteria are claimed to be met. Verify EVERYTHING.
+  return `The developer claims all success criteria are met. Verify the work.
 
-## Task Description
+<task>
 ${context.task}
+</task>
 
-## What Was Completed
+<completed>
 ${context.completed || '(Nothing marked as completed yet)'}
+</completed>
 
-Now test this thoroughly through the allowed interface. Be skeptical — verify every claim.`;
+Test the implementation through the allowed interface. Confirm each success criterion is met.`;
 }
 
 export async function buildVerificationPrompt(

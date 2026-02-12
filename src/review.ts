@@ -40,15 +40,17 @@ function resolveToolConfig(): ToolConfig {
 }
 
 function buildUserPrompt(task: string, completed: string): string {
-  return `ALL success criteria are claimed to be met. Review the code thoroughly.
+  return `The developer claims all success criteria are met. Review the code.
 
-## Task Description
+<task>
 ${task}
+</task>
 
-## What Was Completed
+<completed>
 ${completed || '(Nothing marked as completed yet)'}
+</completed>
 
-Now review the implementation. Run type-checking, linting, and tests. Verify completeness against the task spec. Check for obvious bugs.`;
+Run the toolchain (type-checking, linting, tests, build). Check completeness against the task spec. Assess how the implementation fits into the existing codebase.`;
 }
 
 function parseVerdict(output: string): boolean {

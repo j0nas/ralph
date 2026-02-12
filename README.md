@@ -227,10 +227,10 @@ ralph     # "Add payment processing"
 When the developer marks the task as DONE, Ralph runs a two-stage gate before accepting completion:
 
 **Stage 1: Code Review (white-box)**
-A reviewer agent with full source access runs type-checking, linting, tests, and checks implementation completeness against the task spec. This catches code-level issues cheaply before they waste a black-box verifier attempt. Up to 2 attempts.
+A reviewer agent with full source access runs type-checking, linting, tests, and checks implementation completeness against the task spec. This catches code-level issues cheaply before they waste a black-box verifier attempt. Up to 5 attempts.
 
 **Stage 2: Verification (black-box)**
-A verifier agent with no source access tests the work through the browser (Playwright) or CLI commands. This catches cases where the developer claims completion but the feature doesn't actually work. Up to 3 attempts.
+A verifier agent with no source access tests the work through the browser (Playwright) or CLI commands. This catches cases where the developer claims completion but the feature doesn't actually work. Up to 5 attempts.
 
 The pipeline: Developer says DONE → Code Review → if PASS → Verification → if PASS → exit 0
 

@@ -68,7 +68,7 @@ entry: http://localhost:5173
 - Include a final verification step that checks all success criteria
 - Be specific - "Implement user login endpoint" not "Work on authentication"
 - Do NOT modify the existing Task section - only add the new progress sections
-- IMPORTANT: Do NOT modify the YAML front matter between the \`---\` markers at the top of the session file. This is managed by the CLI.
+- Do not modify the YAML front matter between the \`---\` markers at the top of the session file. This is managed by the CLI.
 </guidelines>
 
 Update the file: ${sessionPath}`;
