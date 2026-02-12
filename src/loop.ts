@@ -12,6 +12,7 @@ import {
   waitForServer,
 } from './server.js';
 import {
+  extractTaskSummary,
   extractVerificationSection,
   getSessionPath,
   parseFrontMatter,
@@ -197,7 +198,10 @@ export async function run(config: Config): Promise<number> {
     verifyPasses: 0,
   };
 
-  function buildSummary(status: RunStatus): void {
+  async function buildSummary(status: RunStatus): Promise<void> {
+    const sessionContent = await readSession(config.sessionId);
+    const { task, completed } = extractTaskSummary(sessionContent);
+
     printRunSummary({
       status,
       buildIterations: stats.buildIterations,
@@ -210,6 +214,8 @@ export async function run(config: Config): Promise<number> {
       verifyPasses: stats.verifyPasses,
       sessionPath,
       resumeCommand: status === 'completed' ? undefined : resumeCmd,
+      taskSummary: task || undefined,
+      completedSummary: completed || undefined,
     });
   }
 
@@ -282,7 +288,7 @@ export async function run(config: Config): Promise<number> {
               error(
                 `Code review exhausted after ${reviewAttempts} attempt(s) (Total: ${totalElapsed})`,
               );
-              buildSummary('review_exhausted');
+              await buildSummary('review_exhausted');
               return EXIT_CODES.REVIEW_EXHAUSTED;
             }
 
@@ -302,7 +308,7 @@ export async function run(config: Config): Promise<number> {
                 error(
                   `Code review exhausted after ${postFm?.reviewAttempts} attempt(s) (Total: ${totalElapsed})`,
                 );
-                buildSummary('review_exhausted');
+                await buildSummary('review_exhausted');
                 return EXIT_CODES.REVIEW_EXHAUSTED;
               }
 
@@ -355,7 +361,7 @@ export async function run(config: Config): Promise<number> {
                 error(
                   `Verification exhausted after ${postFm?.verificationAttempts} attempt(s) (Total: ${totalElapsed})`,
                 );
-                buildSummary('verification_exhausted');
+                await buildSummary('verification_exhausted');
                 return EXIT_CODES.VERIFICATION_EXHAUSTED;
               }
 
@@ -378,7 +384,7 @@ export async function run(config: Config): Promise<number> {
           success(
             `Task completed after ${i} iteration(s)! (Total: ${totalElapsed})`,
           );
-          buildSummary('completed');
+          await buildSummary('completed');
           return EXIT_CODES.SUCCESS;
         } finally {
           if (serverProc) {
@@ -401,7 +407,7 @@ export async function run(config: Config): Promise<number> {
         warning(
           `Task blocked - human intervention needed (Total: ${totalElapsed})`,
         );
-        buildSummary('blocked');
+        await buildSummary('blocked');
         return EXIT_CODES.BLOCKED;
       }
     }
@@ -410,7 +416,7 @@ export async function run(config: Config): Promise<number> {
     error(
       `Max iterations (${config.maxIterations}) reached (Total: ${totalElapsed})`,
     );
-    buildSummary('max_iterations');
+    await buildSummary('max_iterations');
     return EXIT_CODES.MAX_ITERATIONS;
   } finally {
     process.off('SIGINT', handleInterrupt);
