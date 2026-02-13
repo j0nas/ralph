@@ -63,6 +63,7 @@ entry: http://localhost:5173
 
 <guidelines>
 - Each step should be completable in a single iteration (focused, not too large)
+- Keep the total number of steps reasonable (5-15 for most tasks). Each step should represent one meaningful unit of work — not a single line change, but not a multi-file refactor either.
 - Order steps logically - dependencies first, verification last
 - Each step should have a clear "done" state
 - Include a final verification step that checks all success criteria

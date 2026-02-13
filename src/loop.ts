@@ -163,6 +163,8 @@ Review the session file above - it contains both the task specification and your
 </context>${userMessageSection}
 
 <instructions>
+Before modifying any file, read it first to understand existing patterns and conventions. Do not guess about code you haven't inspected.
+
 Each iteration should complete ONE meaningful unit of work, then exit. This keeps context fresh and ensures progress is always recorded.
 
 A meaningful unit of work might be:
@@ -180,6 +182,26 @@ Workflow for each iteration:
    - Move the task to **Completed**
    - Update **Remaining** with next steps
    - Set **Status**: IN_PROGRESS, DONE, or BLOCKED
+
+   Example — if you completed "Set up database schema":
+   \`\`\`
+   ## Status: IN_PROGRESS
+
+   ## Completed
+
+   - [x] Set up database schema
+
+   ## Current Focus
+
+   Implement user authentication endpoint
+
+   ## Remaining
+
+   - [ ] Implement user authentication endpoint
+   - [ ] Add input validation
+   - [ ] Final verification
+   \`\`\`
+
 5. Exit (the loop will start a fresh iteration)
 
 Status meanings:
