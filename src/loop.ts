@@ -2,7 +2,7 @@ import type { ChildProcess } from 'node:child_process';
 import { readdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import chalk from 'chalk';
-import { runClaude } from './claude.js';
+import { runClaude, summarizeSession } from './claude.js';
 import { type Config, EXIT_CODES } from './config.js';
 import { runReview } from './review.js';
 import {
@@ -12,7 +12,6 @@ import {
   waitForServer,
 } from './server.js';
 import {
-  extractTaskSummary,
   extractVerificationSection,
   getSessionPath,
   parseFrontMatter,
@@ -200,7 +199,8 @@ export async function run(config: Config): Promise<number> {
 
   async function buildSummary(status: RunStatus): Promise<void> {
     const sessionContent = await readSession(config.sessionId);
-    const { task, completed } = extractTaskSummary(sessionContent);
+    const sessionSummary =
+      stats.buildIterations > 0 ? await summarizeSession(sessionContent) : '';
 
     printRunSummary({
       status,
@@ -214,8 +214,7 @@ export async function run(config: Config): Promise<number> {
       verifyPasses: stats.verifyPasses,
       sessionPath,
       resumeCommand: status === 'completed' ? undefined : resumeCmd,
-      taskSummary: task || undefined,
-      completedSummary: completed || undefined,
+      sessionSummary: sessionSummary || undefined,
     });
   }
 

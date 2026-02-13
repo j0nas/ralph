@@ -119,8 +119,7 @@ export interface RunSummaryData {
   verifyPasses: number;
   sessionPath: string;
   resumeCommand?: string;
-  taskSummary?: string;
-  completedSummary?: string;
+  sessionSummary?: string;
 }
 
 const STATUS_DISPLAY: Record<
@@ -201,23 +200,10 @@ export function printRunSummary(data: RunSummaryData): void {
     }),
   );
 
-  // Print session content summary
-  if (data.taskSummary || data.completedSummary) {
-    const contentLines: string[] = [];
-    if (data.taskSummary) {
-      contentLines.push(`${chalk.bold('Task:')}`);
-      contentLines.push(chalk.dim(data.taskSummary));
-    }
-    if (data.completedSummary) {
-      if (contentLines.length > 0) contentLines.push('');
-      contentLines.push(`${chalk.bold('Completed:')}`);
-      contentLines.push(chalk.dim(data.completedSummary));
-    }
-    contentLines.push('');
-    contentLines.push(`${chalk.bold('Session file:')}  ${data.sessionPath}`);
-
+  // Print AI-generated session summary
+  if (data.sessionSummary) {
     console.log(
-      boxen(contentLines.join('\n'), {
+      boxen(data.sessionSummary, {
         title: 'Session Summary',
         padding: { left: 1, right: 1, top: 0, bottom: 0 },
         borderColor: border,
