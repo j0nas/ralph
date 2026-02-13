@@ -18,7 +18,10 @@ function formatDate(isoDate: string): string {
   if (isoDate === 'unknown') return isoDate;
   try {
     const date = new Date(isoDate);
-    return date.toLocaleString();
+    return date.toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
   } catch {
     return isoDate;
   }

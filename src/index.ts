@@ -6,6 +6,7 @@ import type { ReviewConfig, VerifyConfig } from './config.js';
 import { runFlow, runNonInteractive } from './flow.js';
 import { ensureClaudeInstalled, exists } from './fs.js';
 import { runList } from './list.js';
+import { runLog } from './log.js';
 import { runResume } from './resume.js';
 
 const DEFAULT_VERIFY: VerifyConfig = { trigger: 'done', maxAttempts: 5 };
@@ -101,6 +102,14 @@ program
   .description('List all sessions')
   .action(async () => {
     await runList();
+  });
+
+// Log command
+program
+  .command('log <id>')
+  .description('Open a session log in your editor')
+  .action(async (id) => {
+    await runLog(id);
   });
 
 program.parse();
