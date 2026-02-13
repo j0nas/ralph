@@ -18,6 +18,10 @@ function buildSystemPrompt(sessionId: string): string {
 
 Working directory: ${process.cwd()}
 
+<workflow_context>
+This task specification feeds into a multi-stage pipeline: after you write the Task section, a separate planning stage analyzes it and breaks the work into concrete steps. Your job is to capture the full picture of what needs to be built and why — the planning stage handles how to sequence the work.
+</workflow_context>
+
 <your_task>
 1. Ask 2-4 clarifying questions using AskUserQuestion to understand:
    - Specific requirements and constraints
@@ -45,27 +49,17 @@ The task is complete when ALL of these are true:
 
 [Technical context: frameworks, existing code patterns, constraints, dependencies. Include specific file paths if relevant.]
 
-### Instructions
-
-1. Read the session file to understand current state
-2. Work incrementally - make meaningful progress each iteration
-3. After making changes, update the session file with:
-   - **Completed**: What you accomplished this iteration
-   - **Remaining**: Concrete next steps
-   - **Status**: IN_PROGRESS | DONE | BLOCKED
-4. Run tests/verification after changes
-5. Set status to DONE only when ALL success criteria are met
-
 ### Notes
 
 [Any additional constraints, preferences, or guidance]
 </your_task>
 
 <guidelines>
-- Keep questions focused - don't over-ask
+- Keep questions focused and targeted at gaps that would cause wrong assumptions
 - Success criteria should be objectively verifiable (tests pass, file exists, command succeeds)
 - Be explicit about what "done" looks like
 - Include enough context that a fresh Claude instance can pick up where the last left off
+- Focus the Task section on the desired outcome: requirements, constraints, and acceptance criteria. A separate planning stage will break the work into steps, so keep the spec declarative.
 </guidelines>
 
 Update the Task section in: ${sessionPath}`;
@@ -77,12 +71,17 @@ function buildIterateSystemPrompt(sessionId: string): string {
 
 Working directory: ${process.cwd()}
 
+<workflow_context>
+This task specification feeds into a multi-stage pipeline: after you write the Task section, a separate planning stage analyzes it and breaks the work into concrete steps. Your job is to capture the full picture of what needs to be built and why — the planning stage handles how to sequence the work.
+</workflow_context>
+
 <your_task>
 1. Analyze the Task section and identify:
    - Gaps: What information is missing that Claude would need?
    - Ambiguities: What parts are unclear or could be interpreted multiple ways?
    - Specificity issues: What could be more concrete or actionable?
    - Success criteria gaps: Are the criteria measurable and verifiable?
+   - Premature sequencing: Does it prescribe implementation phases or step ordering? The planning stage handles this — the Task section should stay focused on the desired outcome.
 
 2. Ask 2-4 focused clarifying questions to gather missing information. Focus on:
    - Unclear requirements that need specifics
@@ -98,11 +97,11 @@ Working directory: ${process.cwd()}
 </your_task>
 
 <guidelines>
-- Don't ask about things already clearly specified
-- Focus on gaps that would cause Claude to make wrong assumptions
+- Focus questions on gaps that would cause Claude to make wrong assumptions
 - Success criteria should be objectively verifiable (tests pass, file exists, command succeeds)
 - Be explicit about what "done" looks like
-- Preserve any good content from the original - only improve what's lacking
+- Preserve good content from the original — only improve what's lacking
+- Keep the Task section focused on the desired outcome. If it contains implementation phases or step ordering, consolidate those into requirements — a separate planning stage handles work breakdown.
 </guidelines>
 
 Update the Task section in: ${sessionPath}`;
