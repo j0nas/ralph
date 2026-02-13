@@ -12,6 +12,7 @@ import {
   waitForServer,
 } from './server.js';
 import {
+  extractTaskSummary,
   extractVerificationSection,
   getSessionPath,
   parseFrontMatter,
@@ -65,6 +66,35 @@ async function cleanVerificationArtifacts(cwd: string): Promise<void> {
   } catch {
     // Non-fatal — don't fail the run over cleanup
   }
+}
+
+/**
+ * After all gates pass, run a Claude instance to update any project documentation
+ * rendered inaccurate by the session's work.
+ */
+async function updateDocs(sessionId: string): Promise<void> {
+  const sessionContent = await readSession(sessionId);
+  const { task, completed } = extractTaskSummary(sessionContent);
+
+  if (!task && !completed) return;
+
+  console.log(chalk.dim('Checking if project documentation needs updating...'));
+
+  const prompt = `Working directory: ${process.cwd()}
+
+You just completed a coding task. Check if the project has documentation (README, docs/, etc.) that has been rendered inaccurate by the work described below. If so, update it. If the docs are still accurate, do nothing.
+
+Only update docs that exist — do not create new documentation files.
+
+<task>
+${task}
+</task>
+
+<completed>
+${completed}
+</completed>`;
+
+  await runClaude(prompt);
 }
 
 function banner(): void {
@@ -378,6 +408,9 @@ export async function run(config: Config): Promise<number> {
             }
             stats.verifyPasses++;
           }
+
+          // Update project docs if the session's work made them inaccurate
+          await updateDocs(config.sessionId);
 
           await updateSessionFrontMatter(config.sessionId, { stage: 'done' });
           success(
