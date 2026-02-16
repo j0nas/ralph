@@ -1,7 +1,12 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { execa } from 'execa';
 import { ensureClaudeInstalled } from './fs.js';
 import { createSession, getSessionPath, sessionExists } from './session.js';
+
+const __dirname = join(fileURLToPath(import.meta.url), '..');
 
 export interface InitOptions {
   session?: string;
@@ -12,99 +17,39 @@ export interface IterateOptions {
   count?: number;
 }
 
-function buildSystemPrompt(sessionId: string): string {
-  const sessionPath = getSessionPath(sessionId);
-  return `You are helping create a task specification for Ralph, a tool that runs Claude Code in iterative loops with fresh context per iteration.
-
-Working directory: ${process.cwd()}
-
-<workflow_context>
-This task specification feeds into a multi-stage pipeline: after you write the Task section, a separate planning stage analyzes it and breaks the work into concrete steps. Your job is to capture the full picture of what needs to be built and why — the planning stage handles how to sequence the work.
-</workflow_context>
-
-<your_task>
-1. Ask 2-4 clarifying questions using AskUserQuestion to understand:
-   - Specific requirements and constraints
-   - Success criteria (how will we know it's done?)
-   - Any relevant technical context
-
-2. After gathering information, update the session file with a complete task specification.
-
-The Task section should follow this structure:
-
-## Task
-
-### Objective
-
-[1-2 paragraphs explaining WHAT to accomplish and WHY it matters. Be specific and explicit - vague requests underperform. Include context that helps Claude understand the motivation.]
-
-### Success Criteria
-
-The task is complete when ALL of these are true:
-- [ ] [Specific, measurable criterion with clear verification method]
-- [ ] [Another criterion - tests pass, file exists, behavior works, etc.]
-- [ ] [Final verification step]
-
-### Context
-
-[Technical context: frameworks, existing code patterns, constraints, dependencies. Include specific file paths if relevant.]
-
-### Notes
-
-[Any additional constraints, preferences, or guidance]
-</your_task>
-
-<guidelines>
-- Keep questions focused and targeted at gaps that would cause wrong assumptions
-- Success criteria should be objectively verifiable (tests pass, file exists, command succeeds)
-- Be explicit about what "done" looks like
-- Include enough context that a fresh Claude instance can pick up where the last left off
-- Focus the Task section on the desired outcome: requirements, constraints, and acceptance criteria. A separate planning stage will break the work into steps, so keep the spec declarative.
-</guidelines>
-
-Update the Task section in: ${sessionPath}`;
+async function loadPrompt(filename: string): Promise<string> {
+  const promptPath = join(__dirname, '..', 'prompts', filename);
+  return readFile(promptPath, 'utf-8');
 }
 
-function buildIterateSystemPrompt(sessionId: string): string {
+async function buildSystemPrompt(sessionId: string): Promise<string> {
   const sessionPath = getSessionPath(sessionId);
-  return `You are helping refine and improve an existing task specification for Ralph, a tool that runs Claude Code in iterative loops with fresh context per iteration.
+  const basePrompt = await loadPrompt('init.md');
+  // Extract the buildSystemPrompt section from the markdown
+  const match = basePrompt.match(
+    /## buildSystemPrompt[\s\S]*?```\n([\s\S]*?)```/,
+  );
+  if (!match) {
+    throw new Error('Could not find buildSystemPrompt in init.md');
+  }
+  return match[1]
+    .replace('${process.cwd()}', process.cwd())
+    .replace('${sessionPath}', sessionPath);
+}
 
-Working directory: ${process.cwd()}
-
-<workflow_context>
-This task specification feeds into a multi-stage pipeline: after you write the Task section, a separate planning stage analyzes it and breaks the work into concrete steps. Your job is to capture the full picture of what needs to be built and why — the planning stage handles how to sequence the work.
-</workflow_context>
-
-<your_task>
-1. Analyze the Task section and identify:
-   - Gaps: What information is missing that Claude would need?
-   - Ambiguities: What parts are unclear or could be interpreted multiple ways?
-   - Specificity issues: What could be more concrete or actionable?
-   - Success criteria gaps: Are the criteria measurable and verifiable?
-   - Premature sequencing: Does it prescribe implementation phases or step ordering? The planning stage handles this — the Task section should stay focused on the desired outcome.
-
-2. Ask 2-4 focused clarifying questions to gather missing information. Focus on:
-   - Unclear requirements that need specifics
-   - Missing technical context
-   - Ambiguous success criteria
-   - Edge cases or constraints not mentioned
-
-3. Rewrite the Task section incorporating the user's answers. The improved version should:
-   - Be more specific and explicit
-   - Have clearer, more measurable success criteria
-   - Include any missing context or constraints
-   - Follow the same structure as the original
-</your_task>
-
-<guidelines>
-- Focus questions on gaps that would cause Claude to make wrong assumptions
-- Success criteria should be objectively verifiable (tests pass, file exists, command succeeds)
-- Be explicit about what "done" looks like
-- Preserve good content from the original — only improve what's lacking
-- Keep the Task section focused on the desired outcome. If it contains implementation phases or step ordering, consolidate those into requirements — a separate planning stage handles work breakdown.
-</guidelines>
-
-Update the Task section in: ${sessionPath}`;
+async function buildIterateSystemPrompt(sessionId: string): Promise<string> {
+  const sessionPath = getSessionPath(sessionId);
+  const basePrompt = await loadPrompt('init.md');
+  // Extract the buildIterateSystemPrompt section from the markdown
+  const match = basePrompt.match(
+    /## buildIterateSystemPrompt[\s\S]*?```\n([\s\S]*?)```/,
+  );
+  if (!match) {
+    throw new Error('Could not find buildIterateSystemPrompt in init.md');
+  }
+  return match[1]
+    .replace('${process.cwd()}', process.cwd())
+    .replace('${sessionPath}', sessionPath);
 }
 
 export async function runInit(
@@ -120,7 +65,7 @@ export async function runInit(
   console.log(chalk.cyan(`\nCreated session: ${chalk.bold(sessionId)}`));
   console.log(chalk.dim(`Session file: ${sessionPath}\n`));
 
-  const systemPrompt = buildSystemPrompt(sessionId);
+  const systemPrompt = await buildSystemPrompt(sessionId);
 
   // Spawn interactive claude session with initial message
   await execa(
@@ -150,7 +95,7 @@ export async function runIterate(options: IterateOptions): Promise<void> {
     }
 
     const sessionPath = getSessionPath(options.sessionId);
-    const systemPrompt = buildIterateSystemPrompt(options.sessionId);
+    const systemPrompt = await buildIterateSystemPrompt(options.sessionId);
 
     if (count > 1) {
       console.log(
