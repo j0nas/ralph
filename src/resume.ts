@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { ReviewConfig, VerifyConfig } from './config.js';
+import type { CallbackHooks, ReviewConfig, VerifyConfig } from './config.js';
 import { run } from './loop.js';
 import {
   getSessionWorkingDirectory,
@@ -14,6 +14,7 @@ export interface ResumeOptions {
   message?: string;
   review?: ReviewConfig;
   verify?: VerifyConfig;
+  hooks?: CallbackHooks;
 }
 
 export async function runResume(options: ResumeOptions): Promise<number> {
@@ -53,5 +54,6 @@ export async function runResume(options: ResumeOptions): Promise<number> {
   }
 
   // Resume the execution loop
-  return run({ sessionId, maxIterations, message, review, verify });
+  const { hooks } = options;
+  return run({ sessionId, maxIterations, message, review, verify, hooks });
 }

@@ -2,7 +2,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { program } from 'commander';
-import type { ReviewConfig, VerifyConfig } from './config.js';
+import type { CallbackHooks, ReviewConfig, VerifyConfig } from './config.js';
 import { runFlow, runNonInteractive } from './flow.js';
 import { ensureClaudeInstalled, exists } from './fs.js';
 import { runList } from './list.js';
@@ -17,6 +17,18 @@ program
   .description('Claude Code in a loop with fresh context per iteration')
   .version('1.0.0');
 
+function parseHooks(opts: {
+  onDone?: string;
+  onBlocked?: string;
+  onProgress?: string;
+}): CallbackHooks | undefined {
+  const hooks: CallbackHooks = {};
+  if (opts.onDone) hooks.onDone = opts.onDone;
+  if (opts.onBlocked) hooks.onBlocked = opts.onBlocked;
+  if (opts.onProgress) hooks.onProgress = opts.onProgress;
+  return Object.keys(hooks).length > 0 ? hooks : undefined;
+}
+
 // Default command (runs the full flow)
 program
   .command('start', { isDefault: true })
@@ -24,6 +36,12 @@ program
   .option('-m, --max-iterations <n>', 'Max iterations', '500')
   .option('--no-verify', 'Disable automatic verification and code review')
   .option('--no-review', 'Disable code review only')
+  .option('--on-done <command>', 'Shell command to run when task completes')
+  .option('--on-blocked <command>', 'Shell command to run when task is blocked')
+  .option(
+    '--on-progress <command>',
+    'Shell command to run after each iteration',
+  )
   .action(async (opts) => {
     ensureClaudeInstalled();
     const verify = opts.verify === false ? undefined : DEFAULT_VERIFY;
@@ -36,6 +54,7 @@ program
         maxIterations: parseInt(opts.maxIterations, 10),
         review,
         verify,
+        hooks: parseHooks(opts),
       }),
     );
   });
@@ -47,6 +66,12 @@ program
   .option('-m, --max-iterations <n>', 'Max iterations', '500')
   .option('--no-verify', 'Disable automatic verification and code review')
   .option('--no-review', 'Disable code review only')
+  .option('--on-done <command>', 'Shell command to run when task completes')
+  .option('--on-blocked <command>', 'Shell command to run when task is blocked')
+  .option(
+    '--on-progress <command>',
+    'Shell command to run after each iteration',
+  )
   .action(async (task, opts) => {
     ensureClaudeInstalled();
 
@@ -67,6 +92,7 @@ program
         maxIterations: parseInt(opts.maxIterations, 10),
         review,
         verify,
+        hooks: parseHooks(opts),
       }),
     );
   });
@@ -78,6 +104,12 @@ program
   .option('-m, --max-iterations <n>', 'Max iterations', '500')
   .option('--no-verify', 'Disable automatic verification and code review')
   .option('--no-review', 'Disable code review only')
+  .option('--on-done <command>', 'Shell command to run when task completes')
+  .option('--on-blocked <command>', 'Shell command to run when task is blocked')
+  .option(
+    '--on-progress <command>',
+    'Shell command to run after each iteration',
+  )
   .action(async (id, message, opts) => {
     ensureClaudeInstalled();
     const verify = opts.verify === false ? undefined : DEFAULT_VERIFY;
@@ -92,6 +124,7 @@ program
         message,
         review,
         verify,
+        hooks: parseHooks(opts),
       }),
     );
   });

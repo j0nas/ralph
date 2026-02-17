@@ -8,12 +8,19 @@ export interface ReviewConfig {
   maxAttempts: number;
 }
 
+export interface CallbackHooks {
+  onDone?: string;
+  onBlocked?: string;
+  onProgress?: string;
+}
+
 export interface Config {
   sessionId: string;
   maxIterations: number;
   message?: string;
   review?: ReviewConfig;
   verify?: VerifyConfig;
+  hooks?: CallbackHooks;
 }
 
 export const EXIT_CODES = {
