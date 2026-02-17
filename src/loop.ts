@@ -3,8 +3,9 @@ import { readdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import chalk from 'chalk';
 import { runClaude, summarizeSession } from './claude.js';
+import type { CallbackHooks } from './config.js';
 import { type Config, EXIT_CODES } from './config.js';
-import { type HookEnv, runHook } from './hooks.js';
+import { executeHook } from './hooks.js';
 import { runReview } from './review.js';
 import {
   runStopCommand,
@@ -232,19 +233,28 @@ These gates have a limited attempt budget — premature DONE wastes attempts.
 </instructions>`;
 }
 
-async function buildHookEnv(
+/**
+ * Fire a named callback hook if configured. Reads the session to build
+ * context env vars, so callers don't need to worry about that.
+ * Short-circuits when no hook is configured (avoids the session read).
+ */
+async function fireHook(
+  hooks: CallbackHooks | undefined,
+  name: keyof CallbackHooks,
   sessionId: string,
   status: string,
   iterations: number,
-): Promise<HookEnv> {
+): Promise<void> {
+  const command = hooks?.[name];
+  if (!command) return;
   const content = await readSession(sessionId);
   const { task } = extractTaskSummary(content);
-  return {
+  await executeHook(command, {
     RALPH_SESSION_ID: sessionId,
     RALPH_STATUS: status,
     RALPH_ITERATIONS: String(iterations),
     RALPH_TASK: task.slice(0, 4096),
-  };
+  });
 }
 
 export async function run(config: Config): Promise<number> {
@@ -318,16 +328,6 @@ export async function run(config: Config): Promise<number> {
         iterations: newIterations,
       });
 
-      // on-progress hook: fires after every iteration
-      if (config.hooks?.onProgress) {
-        const hookEnv = await buildHookEnv(
-          config.sessionId,
-          'progress',
-          newIterations,
-        );
-        await runHook(config.hooks, 'onProgress', hookEnv);
-      }
-
       const status = await checkStatus(config.sessionId);
       const totalElapsed = formatDuration(Date.now() - sessionStart);
       if (status === 'done') {
@@ -366,14 +366,13 @@ export async function run(config: Config): Promise<number> {
                 `Code review exhausted after ${reviewAttempts} attempt(s) (Total: ${totalElapsed})`,
               );
               await buildSummary('review_exhausted');
-              if (config.hooks?.onBlocked) {
-                const hookEnv = await buildHookEnv(
-                  config.sessionId,
-                  'review_exhausted',
-                  i,
-                );
-                await runHook(config.hooks, 'onBlocked', hookEnv);
-              }
+              await fireHook(
+                config.hooks,
+                'onBlocked',
+                config.sessionId,
+                'review_exhausted',
+                i,
+              );
               return EXIT_CODES.REVIEW_EXHAUSTED;
             }
 
@@ -394,14 +393,13 @@ export async function run(config: Config): Promise<number> {
                   `Code review exhausted after ${postFm?.reviewAttempts} attempt(s) (Total: ${totalElapsed})`,
                 );
                 await buildSummary('review_exhausted');
-                if (config.hooks?.onBlocked) {
-                  const hookEnv = await buildHookEnv(
-                    config.sessionId,
-                    'review_exhausted',
-                    i,
-                  );
-                  await runHook(config.hooks, 'onBlocked', hookEnv);
-                }
+                await fireHook(
+                  config.hooks,
+                  'onBlocked',
+                  config.sessionId,
+                  'review_exhausted',
+                  i,
+                );
                 return EXIT_CODES.REVIEW_EXHAUSTED;
               }
 
@@ -432,14 +430,13 @@ export async function run(config: Config): Promise<number> {
                 `Verification exhausted after ${attempts} attempt(s) (Total: ${totalElapsed})`,
               );
               buildSummary('verification_exhausted');
-              if (config.hooks?.onBlocked) {
-                const hookEnv = await buildHookEnv(
-                  config.sessionId,
-                  'verification_exhausted',
-                  i,
-                );
-                await runHook(config.hooks, 'onBlocked', hookEnv);
-              }
+              await fireHook(
+                config.hooks,
+                'onBlocked',
+                config.sessionId,
+                'verification_exhausted',
+                i,
+              );
               return EXIT_CODES.VERIFICATION_EXHAUSTED;
             }
 
@@ -463,6 +460,13 @@ export async function run(config: Config): Promise<number> {
                   `Verification exhausted after ${postFm?.verificationAttempts} attempt(s) (Total: ${totalElapsed})`,
                 );
                 await buildSummary('verification_exhausted');
+                await fireHook(
+                  config.hooks,
+                  'onBlocked',
+                  config.sessionId,
+                  'verification_exhausted',
+                  i,
+                );
                 return EXIT_CODES.VERIFICATION_EXHAUSTED;
               }
 
@@ -489,13 +493,7 @@ export async function run(config: Config): Promise<number> {
             `Task completed after ${i} iteration(s)! (Total: ${totalElapsed})`,
           );
           await buildSummary('completed');
-
-          // on-done hook
-          if (config.hooks?.onDone) {
-            const hookEnv = await buildHookEnv(config.sessionId, 'done', i);
-            await runHook(config.hooks, 'onDone', hookEnv);
-          }
-
+          await fireHook(config.hooks, 'onDone', config.sessionId, 'done', i);
           return EXIT_CODES.SUCCESS;
         } finally {
           if (serverProc) {
@@ -519,15 +517,24 @@ export async function run(config: Config): Promise<number> {
           `Task blocked - human intervention needed (Total: ${totalElapsed})`,
         );
         await buildSummary('blocked');
-
-        // on-blocked hook
-        if (config.hooks?.onBlocked) {
-          const hookEnv = await buildHookEnv(config.sessionId, 'blocked', i);
-          await runHook(config.hooks, 'onBlocked', hookEnv);
-        }
-
+        await fireHook(
+          config.hooks,
+          'onBlocked',
+          config.sessionId,
+          'blocked',
+          i,
+        );
         return EXIT_CODES.BLOCKED;
       }
+
+      // on-progress: fires after each build iteration (not done-gate attempts)
+      await fireHook(
+        config.hooks,
+        'onProgress',
+        config.sessionId,
+        'progress',
+        newIterations,
+      );
     }
 
     const totalElapsed = formatDuration(Date.now() - sessionStart);
@@ -535,17 +542,13 @@ export async function run(config: Config): Promise<number> {
       `Max iterations (${config.maxIterations}) reached (Total: ${totalElapsed})`,
     );
     await buildSummary('max_iterations');
-
-    // on-blocked hook (max iterations)
-    if (config.hooks?.onBlocked) {
-      const hookEnv = await buildHookEnv(
-        config.sessionId,
-        'max_iterations',
-        config.maxIterations,
-      );
-      await runHook(config.hooks, 'onBlocked', hookEnv);
-    }
-
+    await fireHook(
+      config.hooks,
+      'onBlocked',
+      config.sessionId,
+      'max_iterations',
+      config.maxIterations,
+    );
     return EXIT_CODES.MAX_ITERATIONS;
   } finally {
     process.off('SIGINT', handleInterrupt);

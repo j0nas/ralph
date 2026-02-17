@@ -18,7 +18,7 @@ export interface ResumeOptions {
 }
 
 export async function runResume(options: ResumeOptions): Promise<number> {
-  const { sessionId, maxIterations, message, review, verify } = options;
+  const { sessionId, maxIterations, message, review, verify, hooks } = options;
 
   // Check if session exists
   if (!(await sessionExists(sessionId))) {
@@ -53,7 +53,5 @@ export async function runResume(options: ResumeOptions): Promise<number> {
     console.log('');
   }
 
-  // Resume the execution loop
-  const { hooks } = options;
   return run({ sessionId, maxIterations, message, review, verify, hooks });
 }
