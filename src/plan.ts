@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { execa } from 'execa';
+import { runClaudeNonInteractive } from './claude.js';
 import { ensureClaudeInstalled } from './fs.js';
 import {
   getSessionPath,
@@ -100,11 +100,12 @@ export async function runPlan(options: PlanOptions): Promise<void> {
 
   console.log(chalk.cyan(`\nPlanning session ${options.sessionId}...\n`));
 
-  // Run Claude in print mode - no user interaction needed
-  await execa('claude', ['--print', '--system-prompt', systemPrompt], {
-    input: `Analyze @${sessionPath} and add progress tracking sections.`,
-    stdio: ['pipe', 'inherit', 'inherit'],
-  });
+  // Run Claude in print mode using centralized function
+  await runClaudeNonInteractive(
+    systemPrompt,
+    `Analyze @${sessionPath} and add progress tracking sections.`,
+    { inheritOutput: true },
+  );
 
   // Update front matter to mark as planned
   const updatedContent = await readSession(options.sessionId);
