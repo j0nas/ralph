@@ -3,9 +3,8 @@ import { readdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import chalk from 'chalk';
 import { runClaude, summarizeSession } from './claude.js';
-import type { CallbackHooks } from './config.js';
-import { type Config, EXIT_CODES } from './config.js';
-import { executeHook } from './hooks.js';
+import { type CallbackHooks, type Config, EXIT_CODES } from './config.js';
+import { runHook } from './hooks.js';
 import { runReview } from './review.js';
 import {
   runStopCommand,
@@ -249,7 +248,7 @@ async function fireHook(
   if (!command) return;
   const content = await readSession(sessionId);
   const { task } = extractTaskSummary(content);
-  await executeHook(command, {
+  await runHook(hooks, name, {
     RALPH_SESSION_ID: sessionId,
     RALPH_STATUS: status,
     RALPH_ITERATIONS: String(iterations),
@@ -429,7 +428,7 @@ export async function run(config: Config): Promise<number> {
               error(
                 `Verification exhausted after ${attempts} attempt(s) (Total: ${totalElapsed})`,
               );
-              buildSummary('verification_exhausted');
+              await buildSummary('verification_exhausted');
               await fireHook(
                 config.hooks,
                 'onBlocked',

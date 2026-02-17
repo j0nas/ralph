@@ -26,7 +26,7 @@ function addHookOptions(cmd: Command): Command {
     )
     .option(
       '--on-progress <command>',
-      'Shell command to run after each iteration',
+      'Shell command to run after each build iteration',
     );
 }
 
