@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { ReviewConfig, VerifyConfig } from './config.js';
+import type { CallbackHooks, ReviewConfig, VerifyConfig } from './config.js';
 import { runInit, runIterate } from './init.js';
 import { run } from './loop.js';
 import { runPlan } from './plan.js';
@@ -10,6 +10,7 @@ export interface FlowOptions {
   maxIterations: number;
   review?: ReviewConfig;
   verify?: VerifyConfig;
+  hooks?: CallbackHooks;
 }
 
 export interface RunOptions {
@@ -17,6 +18,7 @@ export interface RunOptions {
   maxIterations: number;
   review?: ReviewConfig;
   verify?: VerifyConfig;
+  hooks?: CallbackHooks;
 }
 
 export async function runFlow(options: FlowOptions): Promise<number> {
@@ -45,6 +47,7 @@ export async function runFlow(options: FlowOptions): Promise<number> {
     maxIterations: options.maxIterations,
     review: options.review,
     verify: options.verify,
+    hooks: options.hooks,
   });
 }
 
@@ -65,5 +68,6 @@ export async function runNonInteractive(options: RunOptions): Promise<number> {
     maxIterations: options.maxIterations,
     review: options.review,
     verify: options.verify,
+    hooks: options.hooks,
   });
 }

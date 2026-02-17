@@ -266,6 +266,33 @@ ralph resume <id> --no-verify
 ralph resume <id> --no-review
 ```
 
+### Callback Hooks
+
+Run shell commands when lifecycle events happen — useful for notifications, logging, or integrating ralph into larger pipelines.
+
+```bash
+ralph run task.md --on-done "notify done" --on-blocked "notify blocked"
+ralph start --on-progress "curl -X POST https://webhook.example/status"
+ralph resume <id> --on-done "say 'task finished'"
+```
+
+| Flag | Fires when |
+|------|------------|
+| `--on-done <cmd>` | Task completes successfully |
+| `--on-blocked <cmd>` | Task is blocked, review/verification exhausted, or max iterations reached |
+| `--on-progress <cmd>` | After each build iteration (not done-gate attempts) |
+
+Hooks receive context as environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `RALPH_SESSION_ID` | Session identifier |
+| `RALPH_STATUS` | Event type (`done`, `blocked`, `progress`, `review_exhausted`, `verification_exhausted`, `max_iterations`) |
+| `RALPH_ITERATIONS` | Number of iterations completed |
+| `RALPH_TASK` | Task summary (truncated to 4096 chars) |
+
+Hooks have a 30-second timeout and never crash the main process — failures are logged to stderr.
+
 ## Tips
 
 Be specific—clear success criteria help Claude know when it's done. Use the refine loop and keep refining until your task spec is solid. Start with low iterations (`-m 3`) before running longer loops. Commit between runs to track changes. And remember that sessions are ephemeral; they live in the temp directory and clean up on reboot.
