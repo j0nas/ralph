@@ -1,14 +1,89 @@
-import { execa } from 'execa';
+import { type Options as ExecaOptions, execa } from 'execa';
 
 export interface ToolConfig {
   allowedTools?: string;
   disallowedTools?: string;
 }
 
+interface ClaudeOptions {
+  allowedTools?: string;
+  disallowedTools?: string;
+  verbose?: boolean;
+  inheritOutput?: boolean;
+}
+
+/**
+ * Base arguments for non-interactive Claude CLI invocations.
+ * Includes --dangerously-skip-permissions to enable tool access.
+ */
+const CLAUDE_BASE_ARGS = ['--print', '--dangerously-skip-permissions'];
+
+/**
+ * Centralized Claude CLI execution for NON-INTERACTIVE mode (--print).
+ * Used by: plan.ts, loop.ts, reviewer, verifier, summarizer
+ *
+ * @param systemPrompt - The system prompt to use
+ * @param input - Input to send via stdin
+ * @param options - Additional options (tool config, verbose mode)
+ * @returns Object with stdout and stderr
+ */
+export async function runClaudeNonInteractive(
+  systemPrompt: string,
+  input?: string,
+  options: ClaudeOptions = {},
+): Promise<{ stdout: string; stderr: string }> {
+  const args = [...CLAUDE_BASE_ARGS, '--system-prompt', systemPrompt];
+
+  if (options.verbose) {
+    args.push('--output-format', 'stream-json', '--verbose');
+  }
+
+  if (options.allowedTools) {
+    args.push('--allowedTools', options.allowedTools);
+  }
+  if (options.disallowedTools) {
+    args.push('--disallowedTools', options.disallowedTools);
+  }
+
+  const result = await execa('claude', args, {
+    input: input ?? '',
+    stdout: options.inheritOutput ? 'inherit' : 'pipe',
+    stderr: options.inheritOutput ? 'inherit' : 'pipe',
+  });
+
+  return {
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+  };
+}
+
+/**
+ * Centralized Claude CLI execution for INTERACTIVE mode.
+ * Used by: init.ts, refine phases
+ *
+ * @param systemPrompt - The system prompt to use
+ * @param args - Additional command-line arguments (e.g., initial message)
+ * @param options - Execa options for stdio handling
+ */
+export async function runClaudeInteractive(
+  systemPrompt: string,
+  args: string[] = [],
+  options: ExecaOptions = {},
+): Promise<void> {
+  await execa('claude', ['--system-prompt', systemPrompt, ...args], {
+    stdio: 'inherit',
+    ...options,
+  });
+}
+
+/**
+ * Run Claude in verbose streaming mode (for main execution loop).
+ * Streams JSON output and prints assistant messages with timestamps.
+ */
 export async function runClaude(prompt: string): Promise<void> {
   const child = execa(
     'claude',
-    ['--print', '--output-format', 'stream-json', '--verbose'],
+    [...CLAUDE_BASE_ARGS, '--output-format', 'stream-json', '--verbose'],
     {
       input: prompt,
       stdout: 'pipe',
@@ -50,7 +125,7 @@ async function runClaudeAgent(
   label: string,
 ): Promise<string> {
   const args = [
-    '--print',
+    ...CLAUDE_BASE_ARGS,
     '--output-format',
     'stream-json',
     '--verbose',
@@ -65,13 +140,13 @@ async function runClaudeAgent(
     args.push('--disallowedTools', toolConfig.disallowedTools);
   }
 
+  const collected: string[] = [];
+
   const child = execa('claude', args, {
     input: userPrompt,
     stdout: 'pipe',
     stderr: 'inherit',
   });
-
-  const collected: string[] = [];
 
   if (child.stdout) {
     const rl = await import('node:readline');
@@ -96,7 +171,6 @@ async function runClaudeAgent(
   }
 
   await child;
-  console.log();
   return collected.join('\n');
 }
 
@@ -106,16 +180,11 @@ export async function summarizeSession(
   const systemPrompt = `You summarize automated coding sessions. Given a session file, produce a brief plain-text summary. Cover what the task was and what was accomplished (or what remains). Do not use markdown formatting or bullet points.`;
 
   try {
-    const { stdout } = await execa(
-      'claude',
-      ['--print', '--system-prompt', systemPrompt],
-      {
-        input: `Summarize this session:\n\n${sessionContent}`,
-        stdout: 'pipe',
-        stderr: 'ignore',
-      },
+    const result = await runClaudeNonInteractive(
+      systemPrompt,
+      `Summarize this session:\n\n${sessionContent}`,
     );
-    return stdout.trim();
+    return result.stdout.trim();
   } catch {
     return '';
   }

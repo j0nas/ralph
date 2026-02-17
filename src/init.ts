@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { execa } from 'execa';
+import { runClaudeInteractive } from './claude.js';
 import { ensureClaudeInstalled } from './fs.js';
 import { createSession, getSessionPath, sessionExists } from './session.js';
 
@@ -123,15 +123,9 @@ export async function runInit(
   const systemPrompt = buildSystemPrompt(sessionId);
 
   // Spawn interactive claude session with initial message
-  await execa(
-    'claude',
-    [
-      '--system-prompt',
-      systemPrompt,
-      'Begin by asking clarifying questions about my goal.',
-    ],
-    { stdio: 'inherit' },
-  );
+  await runClaudeInteractive(systemPrompt, [
+    'Begin by asking clarifying questions about my goal.',
+  ]);
 
   return sessionId;
 }
@@ -166,14 +160,12 @@ export async function runIterate(options: IterateOptions): Promise<void> {
     );
 
     // Spawn interactive claude session
-    await execa(
-      'claude',
+    await runClaudeInteractive(
+      systemPrompt,
       [
-        '--system-prompt',
-        systemPrompt,
         `Analyze @${sessionPath} and ask clarifying questions to help improve it.`,
       ],
-      { stdio: 'inherit', reject: false },
+      { reject: false },
     );
   }
 }
