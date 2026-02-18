@@ -26,6 +26,7 @@ vi.mock('./session.js', () => ({
 vi.mock('./plan.js', () => ({ runPlan: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('./loop.js', () => ({ run: vi.fn().mockResolvedValue(0) }));
 
+import { isDetached } from './config.js';
 import { runNonInteractive, spawnDetached } from './flow.js';
 import { runResume } from './resume.js';
 import { createSession } from './session.js';
@@ -39,6 +40,33 @@ function stubSpawn() {
   mockedSpawn.mockReturnValue(fakeChild);
   return fakeChild;
 }
+
+describe('isDetached', () => {
+  const origEnv = process.env.RALPH_DETACHED;
+
+  afterEach(() => {
+    if (origEnv === undefined) {
+      delete process.env.RALPH_DETACHED;
+    } else {
+      process.env.RALPH_DETACHED = origEnv;
+    }
+  });
+
+  it('returns true when RALPH_DETACHED is "1"', () => {
+    process.env.RALPH_DETACHED = '1';
+    expect(isDetached()).toBe(true);
+  });
+
+  it('returns false when RALPH_DETACHED is unset', () => {
+    delete process.env.RALPH_DETACHED;
+    expect(isDetached()).toBe(false);
+  });
+
+  it('returns false for other values', () => {
+    process.env.RALPH_DETACHED = 'yes';
+    expect(isDetached()).toBe(false);
+  });
+});
 
 describe('spawnDetached', () => {
   beforeEach(() => {
