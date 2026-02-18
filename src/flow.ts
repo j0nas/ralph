@@ -82,15 +82,17 @@ export function spawnDetached(
   const logPath = getSessionLogPath(sessionId);
   mkdirSync(getSessionDir(), { recursive: true });
   const logFd = openSync(logPath, 'a');
-
-  const child = spawn(process.execPath, args, {
-    cwd: process.cwd(),
-    stdio: ['ignore', logFd, logFd],
-    detached: true,
-    env: { ...process.env, RALPH_DETACHED: '1' },
-  });
-  child.unref();
-  closeSync(logFd);
+  try {
+    const child = spawn(process.execPath, args, {
+      cwd: process.cwd(),
+      stdio: ['ignore', logFd, logFd],
+      detached: true,
+      env: { ...process.env, RALPH_DETACHED: '1' },
+    });
+    child.unref();
+  } finally {
+    closeSync(logFd);
+  }
 }
 
 export async function runNonInteractive(options: RunOptions): Promise<number> {

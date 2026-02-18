@@ -58,6 +58,8 @@ export async function runResume(options: ResumeOptions): Promise<number> {
 
   // If detach requested, re-spawn in background and exit
   if (options.detach) {
+    // No injectSessionId needed — the session ID is already in argv as a
+    // positional arg (`resume <id>`), so the child naturally reuses it.
     spawnDetached(sessionId);
     const logPath = getSessionLogPath(sessionId);
     console.log(

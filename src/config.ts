@@ -23,11 +23,6 @@ export interface Config {
   hooks?: CallbackHooks;
 }
 
-/** True when the process is a detached background child (RALPH_DETACHED=1). */
-export function isDetached(): boolean {
-  return process.env.RALPH_DETACHED === '1';
-}
-
 export const EXIT_CODES = {
   SUCCESS: 0,
   BLOCKED: 1,
