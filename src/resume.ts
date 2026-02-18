@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import type { CallbackHooks, ReviewConfig, VerifyConfig } from './config.js';
+import { spawnDetached } from './flow.js';
 import { run } from './loop.js';
 import {
   getSessionWorkingDirectory,
@@ -15,6 +16,7 @@ export interface ResumeOptions {
   review?: ReviewConfig;
   verify?: VerifyConfig;
   hooks?: CallbackHooks;
+  detach?: boolean;
 }
 
 export async function runResume(options: ResumeOptions): Promise<number> {
@@ -51,6 +53,17 @@ export async function runResume(options: ResumeOptions): Promise<number> {
     console.log(chalk.dim(`  Session created in: ${sessionDir}`));
     console.log(chalk.dim(`  Current directory:  ${currentDir}`));
     console.log('');
+  }
+
+  // If detach requested, re-spawn in background and exit
+  if (options.detach) {
+    spawnDetached();
+    console.log(
+      chalk.green(
+        `Detached session ${chalk.bold(sessionId)} — running in the background.`,
+      ),
+    );
+    return 0;
   }
 
   return run({ sessionId, maxIterations, message, review, verify, hooks });
