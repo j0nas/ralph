@@ -21,12 +21,6 @@ export interface Config {
   review?: ReviewConfig;
   verify?: VerifyConfig;
   hooks?: CallbackHooks;
-  detach?: boolean;
-}
-
-/** True when the process is a detached background child (RALPH_DETACHED=1). */
-export function isDetached(): boolean {
-  return process.env.RALPH_DETACHED === '1';
 }
 
 export const EXIT_CODES = {
