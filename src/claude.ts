@@ -1,4 +1,5 @@
 import { type Options as ExecaOptions, execa } from 'execa';
+import { loadPrompt } from './prompts.js';
 
 export interface ToolConfig {
   allowedTools?: string;
@@ -177,7 +178,7 @@ async function runClaudeAgent(
 export async function summarizeSession(
   sessionContent: string,
 ): Promise<string> {
-  const systemPrompt = `You summarize automated coding sessions. Given a session file, produce a brief plain-text summary. Cover what the task was and what was accomplished (or what remains). Do not use markdown formatting or bullet points.`;
+  const systemPrompt = loadPrompt('summarize');
 
   try {
     const result = await runClaudeNonInteractive(
