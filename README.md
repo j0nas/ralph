@@ -199,6 +199,27 @@ ralph run task.md --no-verify --no-review -m 10
 
 The task content becomes the `## Task` section in the session file. For best results, write a detailed spec with clear success criteria — the same quality you'd get from the interactive init phase.
 
+### Detached Mode
+
+Add `--detach` to run ralph in the background. The parent process exits immediately and the child's output is redirected to a log file:
+
+```bash
+ralph run task.md --detach -m 20
+# Created session: abc123
+# Detached — running in the background.
+# Log file: /tmp/ralph/session-abc123.log
+
+ralph resume abc123 --detach
+# Detached session abc123 — running in the background.
+# Log file: /tmp/ralph/session-abc123.log
+```
+
+Monitor progress with `tail -f` on the log file. Combine with `--on-done` to get notified when the task finishes:
+
+```bash
+ralph run task.md --detach --on-done "say 'ralph is done'"
+```
+
 ### Parallel Work
 
 Run `ralph` in multiple terminals for parallel workstreams. Each creates an independent session:
@@ -209,6 +230,13 @@ ralph     # "Build user authentication"
 
 # Terminal 2
 ralph     # "Add payment processing"
+```
+
+Or use `--detach` to run multiple tasks from a single terminal:
+
+```bash
+ralph run "Build auth" --detach --on-done "echo auth done >> /tmp/ralph.log"
+ralph run "Add payments" --detach --on-done "echo payments done >> /tmp/ralph.log"
 ```
 
 ### Exit Codes

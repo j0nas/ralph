@@ -103,6 +103,10 @@ export function getSessionPath(id: string): string {
   return join(getSessionDir(), `session-${id}.md`);
 }
 
+export function getSessionLogPath(id: string): string {
+  return join(getSessionDir(), `session-${id}.log`);
+}
+
 export function generateSessionId(): string {
   return randomBytes(4).toString('hex');
 }

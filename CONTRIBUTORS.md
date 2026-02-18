@@ -20,6 +20,7 @@ Always build first (`npm run build`) since ralph runs from `dist/`.
 --no-verify --no-review   # Skip done-gate (faster iteration)
 -m 3                      # Low iteration cap for quick tests
 --on-done "echo done"     # Verify hooks fire (use file output, not stdout)
+--detach                  # Run in background, output goes to log file
 ```
 
 Hooks write to the shell's stdout which may not be visible when running inside another process. Write to a file instead:

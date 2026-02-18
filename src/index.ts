@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { readFile } from 'node:fs/promises';
-import { type Command, program } from 'commander';
+import { type Command, Option, program } from 'commander';
 import type { CallbackHooks, ReviewConfig, VerifyConfig } from './config.js';
 import { runFlow, runNonInteractive } from './flow.js';
 import { ensureClaudeInstalled, exists } from './fs.js';
@@ -74,7 +74,7 @@ addHookOptions(
     .option('--no-verify', 'Disable automatic verification and code review')
     .option('--no-review', 'Disable code review only')
     .option('--detach', 'Run in the background (detached mode)')
-    .option('--session-id <id>', '(internal) Reuse an existing session'),
+    .addOption(new Option('--session-id <id>').hideHelp()),
 ).action(async (task, opts) => {
   ensureClaudeInstalled();
 

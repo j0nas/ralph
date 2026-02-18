@@ -1,11 +1,17 @@
 import { spawn } from 'node:child_process';
+import { closeSync, mkdirSync, openSync } from 'node:fs';
 import chalk from 'chalk';
 import type { CallbackHooks, ReviewConfig, VerifyConfig } from './config.js';
 import { runInit, runIterate } from './init.js';
 import { run } from './loop.js';
 import { runPlan } from './plan.js';
 import { askForPrompt, askYesNo } from './prompt.js';
-import { createSession, getSessionPath } from './session.js';
+import {
+  createSession,
+  getSessionDir,
+  getSessionLogPath,
+  getSessionPath,
+} from './session.js';
 
 export interface FlowOptions {
   maxIterations: number;
@@ -58,23 +64,33 @@ export async function runFlow(options: FlowOptions): Promise<number> {
 /**
  * Re-spawn the current process in the background without `--detach`.
  * The child inherits the environment plus `RALPH_DETACHED=1`.
+ * Stdout and stderr are redirected to the session log file.
  *
- * When `sessionId` is provided, `--session-id <id>` is injected into the
- * forwarded argv so the child reuses the parent's session instead of
- * creating a new one.
+ * @param sessionId - Session ID used to derive the log file path.
+ * @param opts.injectSessionId - When true, `--session-id <id>` is appended to
+ *   the forwarded argv so the child reuses the parent's session.
  */
-export function spawnDetached(sessionId?: string): void {
+export function spawnDetached(
+  sessionId: string,
+  opts?: { injectSessionId?: boolean },
+): void {
   const args = process.argv.slice(1).filter((a) => a !== '--detach');
-  if (sessionId) {
+  if (opts?.injectSessionId) {
     args.push('--session-id', sessionId);
   }
+
+  const logPath = getSessionLogPath(sessionId);
+  mkdirSync(getSessionDir(), { recursive: true });
+  const logFd = openSync(logPath, 'a');
+
   const child = spawn(process.execPath, args, {
     cwd: process.cwd(),
-    stdio: 'ignore',
+    stdio: ['ignore', logFd, logFd],
     detached: true,
     env: { ...process.env, RALPH_DETACHED: '1' },
   });
   child.unref();
+  closeSync(logFd);
 }
 
 export async function runNonInteractive(options: RunOptions): Promise<number> {
@@ -89,8 +105,10 @@ export async function runNonInteractive(options: RunOptions): Promise<number> {
 
   // 2. If detach requested, re-spawn in background and exit
   if (options.detach) {
-    spawnDetached(sessionId);
+    spawnDetached(sessionId, { injectSessionId: true });
+    const logPath = getSessionLogPath(sessionId);
     console.log(chalk.green('Detached — running in the background.'));
+    console.log(chalk.dim(`Log file: ${logPath}`));
     return 0;
   }
 

@@ -3,11 +3,19 @@ import {
   type SpawnOptions,
   spawn,
 } from 'node:child_process';
+import { closeSync, mkdirSync, openSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock child_process.spawn
 vi.mock('node:child_process', () => ({
   spawn: vi.fn(),
+}));
+
+// Mock node:fs (openSync / closeSync / mkdirSync)
+vi.mock('node:fs', () => ({
+  openSync: vi.fn().mockReturnValue(42),
+  closeSync: vi.fn(),
+  mkdirSync: vi.fn(),
 }));
 
 // Mock session module (used by runNonInteractive)
@@ -16,6 +24,10 @@ vi.mock('./session.js', () => ({
   getSessionPath: vi
     .fn()
     .mockReturnValue('/tmp/ralph/session-test-session-123.md'),
+  getSessionLogPath: vi
+    .fn()
+    .mockImplementation((id: string) => `/tmp/ralph/session-${id}.log`),
+  getSessionDir: vi.fn().mockReturnValue('/tmp/ralph'),
   sessionExists: vi.fn().mockResolvedValue(true),
   readSession: vi.fn().mockResolvedValue('---\nstage: running\n---\n# Session'),
   parseFrontMatter: vi.fn().mockReturnValue({ stage: 'running' }),
@@ -32,6 +44,9 @@ import { runResume } from './resume.js';
 import { createSession } from './session.js';
 
 const mockedCreateSession = vi.mocked(createSession);
+const mockedOpenSync = vi.mocked(openSync);
+const mockedCloseSync = vi.mocked(closeSync);
+const mockedMkdirSync = vi.mocked(mkdirSync);
 
 const mockedSpawn = vi.mocked(spawn);
 
@@ -71,12 +86,15 @@ describe('isDetached', () => {
 describe('spawnDetached', () => {
   beforeEach(() => {
     mockedSpawn.mockReset();
+    mockedOpenSync.mockReset().mockReturnValue(42);
+    mockedCloseSync.mockReset();
+    mockedMkdirSync.mockReset();
   });
 
-  it('spawns the process with detached:true, stdio:ignore, and RALPH_DETACHED env', () => {
+  it('spawns with detached:true, stdio redirected to log fd, and RALPH_DETACHED env', () => {
     const fakeChild = stubSpawn();
 
-    spawnDetached();
+    spawnDetached('abc123');
 
     expect(mockedSpawn).toHaveBeenCalledOnce();
     const [executable, _args, options] = mockedSpawn.mock.calls[0];
@@ -84,10 +102,32 @@ describe('spawnDetached', () => {
     expect(executable).toBe(process.execPath);
     expect(options).toMatchObject({
       detached: true,
-      stdio: 'ignore',
+      stdio: ['ignore', 42, 42],
     });
     expect((options as SpawnOptions).env).toHaveProperty('RALPH_DETACHED', '1');
     expect(fakeChild.unref).toHaveBeenCalledOnce();
+  });
+
+  it('opens the log file and closes the fd after spawn', () => {
+    stubSpawn();
+
+    spawnDetached('abc123');
+
+    expect(mockedOpenSync).toHaveBeenCalledWith(
+      '/tmp/ralph/session-abc123.log',
+      'a',
+    );
+    expect(mockedCloseSync).toHaveBeenCalledWith(42);
+  });
+
+  it('ensures the session directory exists', () => {
+    stubSpawn();
+
+    spawnDetached('abc123');
+
+    expect(mockedMkdirSync).toHaveBeenCalledWith('/tmp/ralph', {
+      recursive: true,
+    });
   });
 
   it('strips --detach from the forwarded arguments', () => {
@@ -96,7 +136,7 @@ describe('spawnDetached', () => {
     process.argv = ['node', 'ralph.js', 'run', 'hello', '--detach'];
 
     try {
-      spawnDetached();
+      spawnDetached('abc123');
 
       const args = mockedSpawn.mock.calls[0][1] as string[];
       expect(args).not.toContain('--detach');
@@ -108,13 +148,13 @@ describe('spawnDetached', () => {
     }
   });
 
-  it('injects --session-id when a session ID is provided', () => {
+  it('injects --session-id when injectSessionId is true', () => {
     stubSpawn();
     const originalArgv = process.argv;
     process.argv = ['node', 'ralph.js', 'run', 'hello', '--detach'];
 
     try {
-      spawnDetached('parent-session-abc');
+      spawnDetached('parent-session-abc', { injectSessionId: true });
 
       const args = mockedSpawn.mock.calls[0][1] as string[];
       expect(args).toContain('--session-id');
@@ -125,13 +165,13 @@ describe('spawnDetached', () => {
     }
   });
 
-  it('does not inject --session-id when no session ID is provided', () => {
+  it('does not inject --session-id by default', () => {
     stubSpawn();
     const originalArgv = process.argv;
     process.argv = ['node', 'ralph.js', 'run', 'hello', '--detach'];
 
     try {
-      spawnDetached();
+      spawnDetached('abc123');
 
       const args = mockedSpawn.mock.calls[0][1] as string[];
       expect(args).not.toContain('--session-id');
@@ -144,6 +184,9 @@ describe('spawnDetached', () => {
 describe('runNonInteractive with --detach', () => {
   beforeEach(() => {
     mockedSpawn.mockReset();
+    mockedOpenSync.mockReset().mockReturnValue(42);
+    mockedCloseSync.mockReset();
+    mockedMkdirSync.mockReset();
     mockedCreateSession.mockClear();
     vi.spyOn(console, 'log').mockImplementation(() => {});
   });
@@ -180,6 +223,20 @@ describe('runNonInteractive with --detach', () => {
     expect(args).toContain('test-session-123');
   });
 
+  it('prints the log file path when detaching', async () => {
+    stubSpawn();
+    const logSpy = vi.spyOn(console, 'log');
+
+    await runNonInteractive({
+      task: 'do something',
+      maxIterations: 10,
+      detach: true,
+    });
+
+    const logMessages = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(logMessages).toContain('Log file:');
+  });
+
   it('skips createSession when sessionId option is provided', async () => {
     const exitCode = await runNonInteractive({
       task: 'do something',
@@ -207,6 +264,9 @@ describe('runNonInteractive with --detach', () => {
 describe('runResume with --detach', () => {
   beforeEach(() => {
     mockedSpawn.mockReset();
+    mockedOpenSync.mockReset().mockReturnValue(42);
+    mockedCloseSync.mockReset();
+    mockedMkdirSync.mockReset();
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -227,6 +287,20 @@ describe('runResume with --detach', () => {
     expect(exitCode).toBe(0);
     expect(mockedSpawn).toHaveBeenCalledOnce();
     expect(fakeChild.unref).toHaveBeenCalledOnce();
+  });
+
+  it('prints the log file path when detaching', async () => {
+    stubSpawn();
+    const logSpy = vi.spyOn(console, 'log');
+
+    await runResume({
+      sessionId: 'test-session-123',
+      maxIterations: 10,
+      detach: true,
+    });
+
+    const logMessages = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(logMessages).toContain('Log file:');
   });
 
   it('does not call spawnDetached when detach is false', async () => {

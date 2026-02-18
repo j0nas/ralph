@@ -3,6 +3,7 @@ import type { CallbackHooks, ReviewConfig, VerifyConfig } from './config.js';
 import { spawnDetached } from './flow.js';
 import { run } from './loop.js';
 import {
+  getSessionLogPath,
   getSessionWorkingDirectory,
   parseFrontMatter,
   readSession,
@@ -57,12 +58,14 @@ export async function runResume(options: ResumeOptions): Promise<number> {
 
   // If detach requested, re-spawn in background and exit
   if (options.detach) {
-    spawnDetached();
+    spawnDetached(sessionId);
+    const logPath = getSessionLogPath(sessionId);
     console.log(
       chalk.green(
         `Detached session ${chalk.bold(sessionId)} — running in the background.`,
       ),
     );
+    console.log(chalk.dim(`Log file: ${logPath}`));
     return 0;
   }
 
