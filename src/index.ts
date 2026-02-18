@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { readFile } from 'node:fs/promises';
-import { type Command, program } from 'commander';
+import { type Command, Option, program } from 'commander';
 import type { CallbackHooks, ReviewConfig, VerifyConfig } from './config.js';
 import { runFlow, runNonInteractive } from './flow.js';
 import { ensureClaudeInstalled, exists } from './fs.js';
@@ -72,7 +72,9 @@ addHookOptions(
     .description('Run a task non-interactively (no init/refine phases)')
     .option('-m, --max-iterations <n>', 'Max iterations', '500')
     .option('--no-verify', 'Disable automatic verification and code review')
-    .option('--no-review', 'Disable code review only'),
+    .option('--no-review', 'Disable code review only')
+    .option('--detach', 'Run in the background (detached mode)')
+    .addOption(new Option('--session-id <id>').hideHelp()),
 ).action(async (task, opts) => {
   ensureClaudeInstalled();
 
@@ -92,6 +94,8 @@ addHookOptions(
       review,
       verify,
       hooks: parseHooks(opts),
+      detach: opts.detach,
+      sessionId: opts.sessionId,
     }),
   );
 });
@@ -103,7 +107,8 @@ addHookOptions(
     .description('Resume a blocked or interrupted session')
     .option('-m, --max-iterations <n>', 'Max iterations', '500')
     .option('--no-verify', 'Disable automatic verification and code review')
-    .option('--no-review', 'Disable code review only'),
+    .option('--no-review', 'Disable code review only')
+    .option('--detach', 'Run in the background (detached mode)'),
 ).action(async (id, message, opts) => {
   ensureClaudeInstalled();
   const verify = opts.verify === false ? undefined : DEFAULT_VERIFY;
@@ -117,6 +122,7 @@ addHookOptions(
       review,
       verify,
       hooks: parseHooks(opts),
+      detach: opts.detach,
     }),
   );
 });
