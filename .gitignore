@@ -4,3 +4,4 @@ dist/
 .DS_Store
 progress.md
 PROMPT.md
+.playwright-mcp

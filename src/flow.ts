@@ -8,6 +8,7 @@ import { runPlan } from './plan.js';
 import { askForPrompt, askYesNo } from './prompt.js';
 import {
   createSession,
+  generateSessionSlug,
   getSessionDir,
   getSessionLogPath,
   getSessionPath,
@@ -97,7 +98,13 @@ export function spawnDetached(
 
 export async function runNonInteractive(options: RunOptions): Promise<number> {
   // 1. Reuse an existing session (detached child) or create a new one
-  const sessionId = options.sessionId || (await createSession(options.task));
+  let sessionId: string;
+  if (options.sessionId) {
+    sessionId = options.sessionId;
+  } else {
+    const slug = await generateSessionSlug(options.task);
+    sessionId = await createSession(options.task, slug);
+  }
   const sessionPath = getSessionPath(sessionId);
 
   if (!options.sessionId) {

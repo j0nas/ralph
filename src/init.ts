@@ -1,7 +1,12 @@
 import chalk from 'chalk';
 import { runClaudeInteractive } from './claude.js';
 import { ensureClaudeInstalled } from './fs.js';
-import { createSession, getSessionPath, sessionExists } from './session.js';
+import {
+  createSession,
+  generateSessionSlug,
+  getSessionPath,
+  sessionExists,
+} from './session.js';
 
 export interface InitOptions {
   session?: string;
@@ -113,8 +118,10 @@ export async function runInit(
 ): Promise<string> {
   ensureClaudeInstalled();
 
-  // Create the session with minimal content
-  const sessionId = await createSession(initialPrompt, options.session);
+  // Generate a human-friendly slug unless a custom session ID was provided
+  const customId =
+    options.session || (await generateSessionSlug(initialPrompt));
+  const sessionId = await createSession(initialPrompt, customId);
   const sessionPath = getSessionPath(sessionId);
 
   console.log(chalk.cyan(`\nCreated session: ${chalk.bold(sessionId)}`));

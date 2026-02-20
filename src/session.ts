@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import slugify from '@sindresorhus/slugify';
 import { exists } from './fs.js';
 
 export type SessionStage =
@@ -109,6 +110,70 @@ export function getSessionLogPath(id: string): string {
 
 export function generateSessionId(): string {
   return randomBytes(4).toString('hex');
+}
+
+const STOP_WORDS = new Set([
+  'a',
+  'an',
+  'the',
+  'to',
+  'for',
+  'in',
+  'on',
+  'with',
+  'and',
+  'or',
+  'is',
+  'it',
+  'my',
+  'i',
+  'that',
+  'this',
+  'of',
+  'be',
+  'do',
+  'will',
+  'would',
+  'could',
+  'should',
+  'want',
+  'need',
+  'like',
+  'please',
+  'help',
+  'me',
+  'let',
+  'us',
+]);
+
+function isValidSlug(slug: string): boolean {
+  return (
+    slug.length >= 3 &&
+    slug.length <= 30 &&
+    /^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)
+  );
+}
+
+export async function generateSessionSlug(taskText: string): Promise<string> {
+  try {
+    const words = slugify(taskText)
+      .split('-')
+      .filter((w) => !STOP_WORDS.has(w));
+    const slug = words.slice(0, 3).join('-');
+
+    if (!isValidSlug(slug)) return generateSessionId();
+
+    // Handle collisions: try slug, slug-2, slug-3, ... up to slug-10
+    if (!(await sessionExists(slug))) return slug;
+    for (let i = 2; i <= 10; i++) {
+      const candidate = `${slug}-${i}`;
+      if (!(await sessionExists(candidate))) return candidate;
+    }
+
+    return generateSessionId();
+  } catch {
+    return generateSessionId();
+  }
 }
 
 async function ensureSessionDir(): Promise<void> {

@@ -21,6 +21,7 @@ vi.mock('node:fs', () => ({
 // Mock session module (used by runNonInteractive)
 vi.mock('./session.js', () => ({
   createSession: vi.fn().mockResolvedValue('test-session-123'),
+  generateSessionSlug: vi.fn().mockResolvedValue('test-session-123'),
   getSessionPath: vi
     .fn()
     .mockReturnValue('/tmp/ralph/session-test-session-123.md'),

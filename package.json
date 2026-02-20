@@ -35,6 +35,7 @@
   "author": "Jonas Jensen <jonas.jensen@msn.com>",
   "license": "MIT",
   "dependencies": {
+    "@sindresorhus/slugify": "^3.0.0",
     "boxen": "8.0.1",
     "chalk": "5.6.2",
     "commander": "14.0.2",
