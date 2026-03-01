@@ -2,9 +2,9 @@
 
 import { readFile } from 'node:fs/promises';
 import { type Command, Option, program } from 'commander';
-import type { CallbackHooks, ReviewConfig, VerifyConfig } from './config.js';
-import { runFlow, runNonInteractive } from './flow.js';
-import { ensureClaudeInstalled, exists } from './fs.js';
+import type { CallbackHooks, ReviewConfig, VerifyConfig } from '../config.js';
+import { ensureClaudeInstalled, exists } from '../infra/fs.js';
+import { runFlow, runNonInteractive } from '../pipeline/flow.js';
 import { runList } from './list.js';
 import { runLog } from './log.js';
 import { runResume } from './resume.js';

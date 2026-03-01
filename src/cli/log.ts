@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { platform } from 'node:os';
-import { getSessionPath, sessionExists } from './session.js';
+import { getSessionPath, sessionExists } from '../infra/session.js';
 
 function defaultEditor(): string {
   if (platform() === 'darwin') return 'open -t';

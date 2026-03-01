@@ -1,18 +1,16 @@
-import { spawn } from 'node:child_process';
-import { closeSync, mkdirSync, openSync } from 'node:fs';
 import chalk from 'chalk';
-import type { CallbackHooks, ReviewConfig, VerifyConfig } from './config.js';
-import { runInit, runIterate } from './init.js';
-import { run } from './loop.js';
-import { runPlan } from './plan.js';
-import { askForPrompt, askYesNo } from './prompt.js';
+import type { CallbackHooks, ReviewConfig, VerifyConfig } from '../config.js';
+import { spawnDetached } from '../infra/detach.js';
 import {
   createSession,
   generateSessionSlug,
-  getSessionDir,
   getSessionLogPath,
   getSessionPath,
-} from './session.js';
+} from '../infra/session.js';
+import { askForPrompt, askYesNo } from '../ui/prompt.js';
+import { runInit, runIterate } from './init.js';
+import { run } from './loop.js';
+import { runPlan } from './plan.js';
 
 export interface FlowOptions {
   maxIterations: number;
@@ -60,40 +58,6 @@ export async function runFlow(options: FlowOptions): Promise<number> {
     verify: options.verify,
     hooks: options.hooks,
   });
-}
-
-/**
- * Re-spawn the current process in the background without `--detach`.
- * The child inherits the environment plus `RALPH_DETACHED=1`.
- * Stdout and stderr are redirected to the session log file.
- *
- * @param sessionId - Session ID used to derive the log file path.
- * @param opts.injectSessionId - When true, `--session-id <id>` is appended to
- *   the forwarded argv so the child reuses the parent's session.
- */
-export function spawnDetached(
-  sessionId: string,
-  opts?: { injectSessionId?: boolean },
-): void {
-  const args = process.argv.slice(1).filter((a) => a !== '--detach');
-  if (opts?.injectSessionId) {
-    args.push('--session-id', sessionId);
-  }
-
-  const logPath = getSessionLogPath(sessionId);
-  mkdirSync(getSessionDir(), { recursive: true });
-  const logFd = openSync(logPath, 'a');
-  try {
-    const child = spawn(process.execPath, args, {
-      cwd: process.cwd(),
-      stdio: ['ignore', logFd, logFd],
-      detached: true,
-      env: { ...process.env, RALPH_DETACHED: '1' },
-    });
-    child.unref();
-  } finally {
-    closeSync(logFd);
-  }
 }
 
 export async function runNonInteractive(options: RunOptions): Promise<number> {

@@ -1,14 +1,14 @@
 import chalk from 'chalk';
-import type { CallbackHooks, ReviewConfig, VerifyConfig } from './config.js';
-import { spawnDetached } from './flow.js';
-import { run } from './loop.js';
+import type { CallbackHooks, ReviewConfig, VerifyConfig } from '../config.js';
+import { spawnDetached } from '../infra/detach.js';
 import {
   getSessionLogPath,
   getSessionWorkingDirectory,
   parseFrontMatter,
   readSession,
   sessionExists,
-} from './session.js';
+} from '../infra/session.js';
+import { run } from '../pipeline/loop.js';
 
 export interface ResumeOptions {
   sessionId: string;

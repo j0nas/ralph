@@ -5,7 +5,7 @@ vi.mock('execa', () => ({
 }));
 
 import { execa } from 'execa';
-import type { CallbackHooks } from './config.js';
+import type { CallbackHooks } from '../config.js';
 import { executeHook, runHook } from './hooks.js';
 
 const mockedExeca = vi.mocked(execa);

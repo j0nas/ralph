@@ -1,4 +1,8 @@
-import { parseFrontMatter, readSession, sessionExists } from './session.js';
+import {
+  parseFrontMatter,
+  readSession,
+  sessionExists,
+} from './infra/session.js';
 
 export type Status = 'done' | 'blocked' | 'continue';
 

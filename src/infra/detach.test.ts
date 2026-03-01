@@ -36,11 +36,14 @@ vi.mock('./session.js', () => ({
 }));
 
 // Mock plan and loop (used by runNonInteractive / runResume when not detaching)
-vi.mock('./plan.js', () => ({ runPlan: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('./loop.js', () => ({ run: vi.fn().mockResolvedValue(0) }));
+vi.mock('../pipeline/plan.js', () => ({
+  runPlan: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('../pipeline/loop.js', () => ({ run: vi.fn().mockResolvedValue(0) }));
 
-import { runNonInteractive, spawnDetached } from './flow.js';
-import { runResume } from './resume.js';
+import { runResume } from '../cli/resume.js';
+import { runNonInteractive } from '../pipeline/flow.js';
+import { spawnDetached } from './detach.js';
 import { createSession } from './session.js';
 
 const mockedCreateSession = vi.mocked(createSession);

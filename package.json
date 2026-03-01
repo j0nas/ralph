@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Claude Code in a loop with fresh context per iteration",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/cli/index.js",
   "bin": {
-    "ralph": "dist/index.js"
+    "ralph": "dist/cli/index.js"
   },
   "files": [
     "dist",

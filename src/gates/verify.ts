@@ -1,8 +1,5 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { runClaudeVerifier, type ToolConfig } from './claude.js';
-import type { VerifyConfig } from './config.js';
+import type { VerifyConfig } from '../config.js';
+import { runClaudeVerifier, type ToolConfig } from '../infra/claude.js';
 import {
   extractTaskSummary,
   extractVerificationSection,
@@ -11,12 +8,13 @@ import {
   updateFrontMatter,
   type VerificationSection,
   writeSession,
-} from './session.js';
+} from '../infra/session.js';
 import {
   showVerification,
   verificationFailed,
   verificationPassed,
-} from './ui.js';
+} from '../ui/ui.js';
+import { loadAgentPrompt, parseVerdict } from './shared.js';
 
 export interface VerificationContext {
   task: string;
@@ -26,22 +24,6 @@ export interface VerificationContext {
 export interface VerificationResult {
   passed: boolean;
   feedback: string;
-}
-
-const __dirname = join(fileURLToPath(import.meta.url), '..');
-const agentPromptCache = new Map<string, string>();
-
-async function loadAgentPrompt(mode: string): Promise<string> {
-  const cached = agentPromptCache.get(mode);
-  if (cached) return cached;
-
-  const agentPath = join(__dirname, '..', 'agents', `verifier-${mode}.md`);
-  const content = await readFile(agentPath, 'utf-8');
-
-  // Strip YAML frontmatter
-  const stripped = content.replace(/^---\n[\s\S]*?\n---\n*/, '').trim();
-  agentPromptCache.set(mode, stripped);
-  return stripped;
 }
 
 function buildDynamicPreamble(resolved: VerificationSection): string {
@@ -77,7 +59,7 @@ export async function buildVerificationPrompt(
   context: VerificationContext,
   resolved: VerificationSection,
 ): Promise<{ systemPrompt: string; userPrompt: string }> {
-  const agentPrompt = await loadAgentPrompt(resolved.mode);
+  const agentPrompt = await loadAgentPrompt(`verifier-${resolved.mode}.md`);
   const preamble = buildDynamicPreamble(resolved);
   const systemPrompt = `${preamble}\n\n${agentPrompt}`;
   return {
@@ -111,14 +93,6 @@ export function resolveToolConfig(resolved: VerificationSection): ToolConfig {
         disallowedTools: 'Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,Task',
       };
   }
-}
-
-function parseVerdict(output: string): boolean {
-  // Look for the last VERDICT line (in case multiple appear)
-  const verdictMatch = output.match(/## VERDICT:\s*(PASS|FAIL)/gi);
-  if (!verdictMatch) return false;
-  const last = verdictMatch[verdictMatch.length - 1];
-  return /PASS/i.test(last);
 }
 
 export async function runVerification(

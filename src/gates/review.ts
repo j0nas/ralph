@@ -1,35 +1,18 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { runClaudeReviewer, type ToolConfig } from './claude.js';
-import type { ReviewConfig } from './config.js';
+import type { ReviewConfig } from '../config.js';
+import { runClaudeReviewer, type ToolConfig } from '../infra/claude.js';
 import {
   extractTaskSummary,
   parseFrontMatter,
   readSession,
   updateFrontMatter,
   writeSession,
-} from './session.js';
-import { reviewFailed, reviewPassed, showReview } from './ui.js';
+} from '../infra/session.js';
+import { reviewFailed, reviewPassed, showReview } from '../ui/ui.js';
+import { loadAgentPrompt, parseVerdict } from './shared.js';
 
 export interface ReviewResult {
   passed: boolean;
   feedback: string;
-}
-
-const __dirname = join(fileURLToPath(import.meta.url), '..');
-let cachedAgentPrompt: string | undefined;
-
-async function loadAgentPrompt(): Promise<string> {
-  if (cachedAgentPrompt) return cachedAgentPrompt;
-
-  const agentPath = join(__dirname, '..', 'agents', 'reviewer.md');
-  const content = await readFile(agentPath, 'utf-8');
-
-  // Strip YAML frontmatter
-  const stripped = content.replace(/^---\n[\s\S]*?\n---\n*/, '').trim();
-  cachedAgentPrompt = stripped;
-  return stripped;
 }
 
 function resolveToolConfig(): ToolConfig {
@@ -51,13 +34,6 @@ ${completed || '(Nothing marked as completed yet)'}
 </completed>
 
 Run the toolchain (type-checking, linting, tests, build). Check completeness against the task spec. Assess how the implementation fits into the existing codebase.`;
-}
-
-function parseVerdict(output: string): boolean {
-  const verdictMatch = output.match(/## VERDICT:\s*(PASS|FAIL)/gi);
-  if (!verdictMatch) return false;
-  const last = verdictMatch[verdictMatch.length - 1];
-  return /PASS/i.test(last);
 }
 
 export async function runReview(
@@ -84,7 +60,7 @@ export async function runReview(
   const { task, completed } = extractTaskSummary(sessionContent);
 
   // Build prompts
-  const agentPrompt = await loadAgentPrompt();
+  const agentPrompt = await loadAgentPrompt('reviewer.md');
   const systemPrompt = `Working directory: ${process.cwd()}\n\n${agentPrompt}`;
   const userPrompt = buildUserPrompt(task, completed);
 

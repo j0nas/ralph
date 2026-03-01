@@ -1,5 +1,5 @@
 import { execa } from 'execa';
-import type { CallbackHooks } from './config.js';
+import type { CallbackHooks } from '../config.js';
 
 export interface HookEnv {
   RALPH_SESSION_ID: string;

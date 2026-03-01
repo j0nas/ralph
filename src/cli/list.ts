@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { listSessions, type SessionInfo } from './session.js';
+import { listSessions, type SessionInfo } from '../infra/session.js';
 
 function formatStatus(status: SessionInfo['status']): string {
   switch (status) {
