@@ -12,20 +12,23 @@ export type SessionStage =
   | 'reviewing'
   | 'verifying'
   | 'blocked'
-  | 'done';
+  | 'done'
+  | 'stopping';
 
 export interface SessionFrontMatter {
   stage: SessionStage;
   iterations: number;
   reviewAttempts?: number;
   verificationAttempts?: number;
+  mode?: 'goal';
+  cycle?: number;
 }
 
 export interface SessionInfo {
   id: string;
   created: string;
   workingDirectory: string;
-  status: 'IN_PROGRESS' | 'DONE' | 'BLOCKED' | 'NOT_PLANNED';
+  status: 'IN_PROGRESS' | 'DONE' | 'BLOCKED' | 'NOT_PLANNED' | 'STOPPING';
 }
 
 export function parseFrontMatter(content: string): SessionFrontMatter | null {
@@ -37,6 +40,8 @@ export function parseFrontMatter(content: string): SessionFrontMatter | null {
   const iterationsMatch = yaml.match(/^iterations:\s*(\d+)$/m);
   const reviewAttemptsMatch = yaml.match(/^reviewAttempts:\s*(\d+)$/m);
   const verifyAttemptsMatch = yaml.match(/^verificationAttempts:\s*(\d+)$/m);
+  const modeMatch = yaml.match(/^mode:\s*(.+)$/m);
+  const cycleMatch = yaml.match(/^cycle:\s*(\d+)$/m);
 
   if (!stageMatch) return null;
 
@@ -49,6 +54,8 @@ export function parseFrontMatter(content: string): SessionFrontMatter | null {
     verificationAttempts: verifyAttemptsMatch
       ? parseInt(verifyAttemptsMatch[1], 10)
       : undefined,
+    mode: modeMatch?.[1] === 'goal' ? 'goal' : undefined,
+    cycle: cycleMatch ? parseInt(cycleMatch[1], 10) : undefined,
   };
 }
 
@@ -57,8 +64,16 @@ function serializeFrontMatter(fm: {
   iterations: number;
   reviewAttempts?: number;
   verificationAttempts?: number;
+  mode?: string;
+  cycle?: number;
 }): string {
   let yaml = `---\nstage: ${fm.stage}\niterations: ${fm.iterations}`;
+  if (fm.mode !== undefined) {
+    yaml += `\nmode: ${fm.mode}`;
+  }
+  if (fm.cycle !== undefined) {
+    yaml += `\ncycle: ${fm.cycle}`;
+  }
   if (fm.reviewAttempts !== undefined) {
     yaml += `\nreviewAttempts: ${fm.reviewAttempts}`;
   }
@@ -81,6 +96,8 @@ export function updateFrontMatter(
       iterations: updates.iterations ?? 0,
       reviewAttempts: updates.reviewAttempts,
       verificationAttempts: updates.verificationAttempts,
+      mode: updates.mode,
+      cycle: updates.cycle,
     };
     return `${serializeFrontMatter(fm)}\n${content}`;
   }
@@ -91,6 +108,8 @@ export function updateFrontMatter(
     reviewAttempts: updates.reviewAttempts ?? existing.reviewAttempts,
     verificationAttempts:
       updates.verificationAttempts ?? existing.verificationAttempts,
+    mode: updates.mode ?? existing.mode,
+    cycle: updates.cycle ?? existing.cycle,
   };
 
   return content.replace(/^---\n[\s\S]*?\n---/, serializeFrontMatter(fm));
@@ -253,6 +272,9 @@ function parseSessionMetadata(content: string, id: string): SessionInfo {
       case 'planned':
         status = 'IN_PROGRESS';
         break;
+      case 'stopping':
+        status = 'STOPPING';
+        break;
       default:
         status = 'NOT_PLANNED';
         break;
@@ -276,7 +298,10 @@ export async function listSessions(): Promise<SessionInfo[]> {
 
   const files = await readdir(dir);
   const sessionFiles = files.filter(
-    (f) => f.startsWith('session-') && f.endsWith('.md'),
+    (f) =>
+      f.startsWith('session-') &&
+      f.endsWith('.md') &&
+      !f.endsWith('-changelog.md'),
   );
 
   const sessions: SessionInfo[] = [];
@@ -356,4 +381,27 @@ export function extractVerificationSection(
     start: startMatch?.[1]?.trim(),
     stop: stopMatch?.[1]?.trim(),
   };
+}
+
+// --- Changelog helpers (goal mode) ---
+
+export function getChangelogPath(id: string): string {
+  return join(getSessionDir(), `session-${id}-changelog.md`);
+}
+
+export async function readChangelog(id: string): Promise<string> {
+  const path = getChangelogPath(id);
+  if (!(await exists(path))) return '';
+  return readFile(path, 'utf-8');
+}
+
+export async function appendChangelog(
+  id: string,
+  entry: string,
+): Promise<void> {
+  await ensureSessionDir();
+  const path = getChangelogPath(id);
+  const existing = await readChangelog(id);
+  const content = existing ? `${existing}\n\n${entry}` : entry;
+  await writeFile(path, content, 'utf-8');
 }

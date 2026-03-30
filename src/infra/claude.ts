@@ -118,7 +118,7 @@ export async function runClaude(prompt: string): Promise<void> {
   console.log(); // Newline after Claude's output
 }
 
-async function runClaudeAgent(
+export async function runClaudeAgent(
   systemPrompt: string,
   userPrompt: string,
   toolConfig: ToolConfig,

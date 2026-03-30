@@ -5,9 +5,11 @@ import { type Command, Option, program } from 'commander';
 import type { CallbackHooks, ReviewConfig, VerifyConfig } from '../config.js';
 import { ensureClaudeInstalled, exists } from '../infra/fs.js';
 import { runFlow, runNonInteractive } from '../pipeline/flow.js';
+import { runGoalMode } from '../pipeline/goal.js';
 import { runList } from './list.js';
 import { runLog } from './log.js';
 import { runResume } from './resume.js';
+import { runStop } from './stop.js';
 
 const DEFAULT_VERIFY: VerifyConfig = { trigger: 'done', maxAttempts: 5 };
 const DEFAULT_REVIEW: ReviewConfig = { trigger: 'done', maxAttempts: 5 };
@@ -126,6 +128,42 @@ addHookOptions(
     }),
   );
 });
+
+// Goal command (autonomous, open-ended)
+addHookOptions(
+  program
+    .command('goal <goal>')
+    .description(
+      'Run autonomously toward an open-ended goal (loops until stopped)',
+    )
+    .option('--detach', 'Run in the background (detached mode)')
+    .addOption(new Option('--session-id <id>').hideHelp()),
+).action(async (goal, opts) => {
+  ensureClaudeInstalled();
+
+  // Resolve goal: if it's a path to an existing .md file, read it
+  let goalContent = goal;
+  if (goal.endsWith('.md') && (await exists(goal))) {
+    goalContent = await readFile(goal, 'utf-8');
+  }
+
+  process.exit(
+    await runGoalMode({
+      goal: goalContent,
+      hooks: parseHooks(opts),
+      detach: opts.detach,
+      sessionId: opts.sessionId,
+    }),
+  );
+});
+
+// Stop command (graceful stop for goal sessions)
+program
+  .command('stop <id>')
+  .description('Gracefully stop a running goal session')
+  .action(async (id) => {
+    process.exit(await runStop(id));
+  });
 
 // List command
 program

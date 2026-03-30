@@ -2,12 +2,14 @@ import chalk from 'chalk';
 import type { CallbackHooks, ReviewConfig, VerifyConfig } from '../config.js';
 import { spawnDetached } from '../infra/detach.js';
 import {
+  extractTaskSummary,
   getSessionLogPath,
   getSessionWorkingDirectory,
   parseFrontMatter,
   readSession,
   sessionExists,
 } from '../infra/session.js';
+import { runGoalMode } from '../pipeline/goal.js';
 import { run } from '../pipeline/loop.js';
 
 export interface ResumeOptions {
@@ -69,6 +71,16 @@ export async function runResume(options: ResumeOptions): Promise<number> {
     );
     console.log(chalk.dim(`Log file: ${logPath}`));
     return 0;
+  }
+
+  // Goal sessions resume into goal mode
+  if (frontMatter.mode === 'goal') {
+    const { task } = extractTaskSummary(content);
+    return runGoalMode({
+      goal: task,
+      sessionId,
+      hooks,
+    });
   }
 
   return run({ sessionId, maxIterations, message, review, verify, hooks });

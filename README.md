@@ -174,6 +174,8 @@ npm link
 ralph                         # Full interactive workflow (default)
 ralph run <task>              # Non-interactive: skip init/refine, go straight to plan + execute
 ralph run task.md             # Read task from a markdown file
+ralph goal <goal>             # Autonomous mode: loop toward an open-ended goal until stopped
+ralph stop <id>               # Gracefully stop a goal session (wrap up + summary)
 ralph resume <id>             # Resume a blocked or interrupted session
 ralph resume <id> "message"   # Resume with context for Claude
 ralph list                    # List all sessions
@@ -219,6 +221,28 @@ Monitor progress with `tail -f` on the log file. Combine with `--on-done` to get
 ```bash
 ralph run task.md --detach --on-done "say 'ralph is done'"
 ```
+
+### Goal Mode
+
+`ralph goal` runs autonomously toward an open-ended goal. Instead of executing a fixed plan and stopping, it loops indefinitely: each cycle plans the next batch of work based on the current state of the codebase, builds it, then re-plans. It doesn't stop until you tell it to.
+
+```bash
+# Start a goal session
+ralph goal "create a fun multiplayer browser game for a LAN party"
+
+# Or detach for overnight runs
+ralph goal "create a fun multiplayer browser game" --detach
+
+# Gracefully stop from another terminal — wraps up and writes a summary
+ralph stop <session-id>
+
+# Resume a stopped goal session
+ralph resume <session-id>
+```
+
+Each cycle gets a fresh context window. A changelog tracks what was accomplished across cycles so the planner can build forward without repeating work. If a cycle hits a blocker, the next planner pivots around it.
+
+When you run `ralph stop`, the current iteration finishes, then a wrap-up agent stabilizes the project (ensures it builds, tests pass, no half-finished state) and writes a summary to the session file.
 
 ### Parallel Work
 

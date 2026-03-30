@@ -127,7 +127,25 @@ especially powerful for establishing consistent behavior across iterations.
 
 ### Explicit instruction following
 Claude 4.x models follow instructions more precisely than earlier models. They respond
-to what you literally say. If you want "above and beyond" behavior, request it explicitly.
+to what you literally say — no more, no less. This cuts both ways:
+
+- If your prompt is narrow, Claude will produce narrow output. It won't infer that you
+  wanted something expansive or creative from a terse instruction.
+- If you want ambitious, thorough, or "above and beyond" behavior, request it explicitly.
+
+```
+# Does the minimum — Claude takes this literally:
+"Create an analytics dashboard"
+
+# Explicitly asks for more:
+"Create an analytics dashboard. Include as many relevant features and interactions
+as possible. Go beyond the basics to create a fully-featured implementation."
+```
+
+Use modifiers like "think ambitiously", "go beyond the obvious", "include as many
+relevant features as possible" when you want expansive output. Conversely, if previous
+prompts included anti-laziness language ("be thorough", "don't be lazy"), dial it back —
+Claude 4.x is already proactive and may overtrigger on that guidance.
 
 ### Be explicit about tool usage
 Claude 4.x may suggest changes rather than implementing them if your prompt says "suggest".

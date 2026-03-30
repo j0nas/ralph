@@ -23,6 +23,12 @@ export interface Config {
   hooks?: CallbackHooks;
 }
 
+export interface GoalConfig {
+  sessionId: string;
+  goal: string;
+  hooks?: CallbackHooks;
+}
+
 export const EXIT_CODES = {
   SUCCESS: 0,
   BLOCKED: 1,

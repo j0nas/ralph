@@ -9,6 +9,8 @@ function formatStatus(status: SessionInfo['status']): string {
       return chalk.yellow('BLOCKED');
     case 'IN_PROGRESS':
       return chalk.blue('IN_PROGRESS');
+    case 'STOPPING':
+      return chalk.yellow('STOPPING');
     case 'NOT_PLANNED':
       return chalk.dim('NOT_PLANNED');
   }
