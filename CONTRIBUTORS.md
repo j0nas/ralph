@@ -9,7 +9,7 @@ Ralph shells out to `claude` (Claude Code CLI). If you're already running inside
 To bypass this, unset the environment variable before running:
 
 ```bash
-unset CLAUDECODE && node dist/index.js run "your task" -m 3
+unset CLAUDECODE && npm run build && ralph run "your task" -m 3
 ```
 
 Always build first (`npm run build`) since ralph runs from `dist/`.
