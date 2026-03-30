@@ -57,11 +57,13 @@ Design the most impactful next batch of work toward the goal. Think ambitiously 
 - CLI tool or script → mode: cli, entry: <command name or prefix>
 - No meaningful black-box test possible → mode: none
 
-Example:
+Examples:
 mode: browser
 start: npm run dev
 entry: http://localhost:5173
-stop: kill the dev processes
+
+mode: cli
+entry: mycli,npm
 
 ## Notes
 
@@ -71,7 +73,7 @@ stop: kill the dev processes
 
 <examples>
 <example>
-A good plan for a goal like "create a fun multiplayer browser game":
+A good plan for a web application goal:
 
 ```
 ## Status: IN_PROGRESS
@@ -82,30 +84,67 @@ A good plan for a goal like "create a fun multiplayer browser game":
 
 ## Current Focus
 
-Set up Phaser.js project with TypeScript, Vite dev server, and a basic game canvas rendering a player sprite that moves with arrow keys.
+Initialize Next.js project with TypeScript, set up PostgreSQL schema with Drizzle ORM, and create a seed script with sample data.
 
 ## Remaining
 
-- [ ] Initialize Vite + TypeScript project, install Phaser.js, render a basic game scene
-- [ ] Add player sprite with arrow-key movement and collision boundaries
-- [ ] Set up Express + WebSocket server for multiplayer communication
-- [ ] Synchronize player positions across connected clients
-- [ ] Add a lobby screen where players can see who's connected and start a game
-- [ ] Implement a simple game mechanic (e.g., tag, collect coins, or dodge obstacles)
-- [ ] Add score tracking and a win/lose condition
-- [ ] Polish: add sound effects, visual feedback, and a game-over screen
+- [ ] Initialize Next.js + TypeScript project, install Drizzle ORM, configure database connection
+- [ ] Define schema: users, recipes, ingredients, tags tables with relations
+- [ ] Create seed script with 20 sample recipes across different cuisines
+- [ ] Build recipe list page with search and tag filtering
+- [ ] Build recipe detail page with ingredients, steps, and nutrition info
+- [ ] Add user auth (email/password) with session cookies
+- [ ] Add "save recipe" and personal cookbook features
+- [ ] Polish: responsive layout, loading states, image placeholders
 
 ## Verification
 
 mode: browser
 start: npm run dev
-entry: http://localhost:5173
+entry: http://localhost:3000
 
 ## Notes
 
-- Chose Phaser.js over raw Canvas for built-in physics, sprite management, and input handling
-- Using WebSockets (ws) instead of Socket.IO to avoid extra dependencies
-- Targeting 2-4 players on a LAN — no need for matchmaking or auth
+- Chose Drizzle over Prisma for lighter footprint and SQL-like query syntax
+- SQLite for development, can migrate to PostgreSQL later
+- Server components for recipe pages (SEO + fast initial load)
+```
+</example>
+<example>
+A good plan for a CLI tool goal:
+
+```
+## Status: IN_PROGRESS
+
+## Completed
+
+(none yet)
+
+## Current Focus
+
+Initialize TypeScript project, implement the core diff algorithm, and wire up a basic CLI that compares two files.
+
+## Remaining
+
+- [ ] Initialize project with TypeScript, add Commander.js for CLI parsing
+- [ ] Implement Myers diff algorithm for line-level comparison
+- [ ] Add CLI entry point: `difftool <file1> <file2>` with colored +/- output
+- [ ] Add unified diff format output (`--unified` flag)
+- [ ] Add directory comparison mode (`difftool dir1/ dir2/`)
+- [ ] Add `--ignore-whitespace` and `--context <n>` flags
+- [ ] Write unit tests for the diff algorithm (edge cases: empty files, identical files, binary detection)
+- [ ] Write integration tests that run the CLI on fixture files
+
+## Verification
+
+mode: cli
+entry: node dist/cli.js,npm
+
+## Notes
+
+- Myers algorithm for optimal diff (same as git diff) — no dependencies needed
+- Colored output via chalk, respects NO_COLOR environment variable
+- Binary file detection via null byte check in first 8KB
 ```
 </example>
 </examples>

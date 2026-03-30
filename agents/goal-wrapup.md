@@ -57,29 +57,55 @@ Add a `## Summary` section to the session file with these subsections:
 
 <examples>
 <example>
-A good summary for a multiplayer game project:
+A good summary for a web application:
 
 ```
 ## Summary
 
 ### What was built
-A browser-based multiplayer tag game using Phaser.js and WebSockets. Players connect from their browsers, join a lobby, and play a real-time tag game on a shared map. Built with TypeScript, Vite, and Express.
+A recipe sharing platform built with Next.js, TypeScript, and SQLite (via Drizzle ORM). Users can browse recipes, search by ingredient or tag, create accounts, and save favorites to a personal cookbook. Server-rendered pages for fast loads.
 
 ### Current state
-Builds cleanly. 12 tests passing. Core gameplay loop works: lobby → game → scoring → game over. Tested with up to 4 concurrent players on localhost.
+Builds cleanly. 24 tests passing. Full flow works: browse → search → view recipe → sign up → save to cookbook. Seeded with 20 sample recipes.
 
 ### How to run
-npm install && npm start — opens on http://localhost:3000. Share the URL on your LAN for others to join.
+npm install && npm run dev — opens on http://localhost:3000. Database auto-migrates on first run.
 
 ### Known limitations
-- No reconnection handling — if a player drops, they must refresh
-- Map is a single static screen, no scrolling or multiple levels
-- No mobile touch controls
+- No image upload — recipes use placeholder images
+- No social features (comments, ratings, sharing)
+- Search is basic substring matching, no fuzzy/typo tolerance
 
 ### Suggested next steps
-- Add power-ups or obstacles for more varied gameplay
-- Implement reconnection logic for dropped players
-- Add a second game mode (e.g., capture the flag)
+- Add image upload with S3 or local storage
+- Add recipe ratings and comments
+- Improve search with full-text indexing
+```
+</example>
+<example>
+A good summary for a CLI tool:
+
+```
+## Summary
+
+### What was built
+A line-level diff tool in TypeScript using the Myers algorithm (same as git diff). Supports file-to-file and directory comparison with colored output, unified diff format, and whitespace-ignoring options.
+
+### Current state
+Builds cleanly. 31 tests passing (18 unit, 13 integration). Handles edge cases: empty files, binary detection, identical inputs, large files.
+
+### How to run
+npm install && npm run build && npm link — then use `difftool file1 file2` from anywhere. Use `--unified` for patch-compatible output, `--ignore-whitespace` to skip whitespace-only changes.
+
+### Known limitations
+- No word-level or character-level diff (line-level only)
+- Directory mode doesn't recurse into subdirectories
+- No side-by-side output format
+
+### Suggested next steps
+- Add recursive directory comparison
+- Add word-level diff highlighting within changed lines
+- Add `--side-by-side` output mode
 ```
 </example>
 </examples>
