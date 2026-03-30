@@ -16,7 +16,7 @@ Ralph shells out to `claude`, so running it inside a Claude Code session will fa
 ## Checks
 
 ```bash
-npm run build      # TypeScript compilation
-npm test           # Vitest unit tests
-npm run lint       # Biome lint + format check
+pnpm run build      # TypeScript compilation
+pnpm test           # Vitest unit tests
+pnpm run lint       # Biome lint + format check
 ```

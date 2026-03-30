@@ -159,13 +159,13 @@ The Task section stays immutable after planning—it's the north star for all it
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Build
-npm run build
+pnpm run build
 
 # Link globally
-npm link
+pnpm link
 ```
 
 ## Usage
@@ -295,7 +295,7 @@ During planning, Claude writes a `## Verification` section into the session file
 ```markdown
 ## Verification
 mode: browser
-start: npm start
+start: pnpm start
 entry: http://localhost:5173
 ```
 
