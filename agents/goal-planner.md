@@ -53,13 +53,15 @@ Design the most impactful next batch of work toward the goal. Think ambitiously 
 ## Verification
 
 [How should a black-box tester with no source code access verify the work?]
-- Web application or UI → mode: browser, entry: <URL>, start: <command to start the server>
+- Web application or UI → mode: browser, entry: <URL>, start: <command to start the server>, stop: <command to kill the server>
 - CLI tool or script → mode: cli, entry: <command name or prefix>
 - No meaningful black-box test possible → mode: none
+- Always include a `stop` command for browser mode — servers are started and stopped between cycles, and without a stop command, zombie processes accumulate.
 
 Examples:
 mode: browser
 start: npm run dev
+stop: pkill -f "npm run dev"
 entry: http://localhost:5173
 
 mode: cli

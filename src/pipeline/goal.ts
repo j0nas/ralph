@@ -167,6 +167,18 @@ async function runGoalBuild(sessionId: string): Promise<BuildResult> {
     const iterationDuration = formatDuration(Date.now() - iterationStart);
     console.log(chalk.dim(`Iteration completed in ${iterationDuration}`));
 
+    // Clean up any servers the builder left running. The builder is told
+    // to leave servers up (for verification in the regular pipeline), but
+    // in goal mode they accumulate across iterations and block ports.
+    const iterContent = await readSession(sessionId);
+    const iterVerify = extractVerificationSection(iterContent);
+    if (iterVerify?.stop) {
+      runStopCommand(iterVerify.stop, process.cwd());
+    } else if (iterVerify?.start) {
+      // No explicit stop command — kill processes matching the start command
+      runStopCommand(`pkill -f "${iterVerify.start}"`, process.cwd());
+    }
+
     // Increment iteration count in front matter
     const currentContent = await readSession(sessionId);
     const currentFm = parseFrontMatter(currentContent);
