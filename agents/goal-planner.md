@@ -26,7 +26,7 @@ Read the codebase to understand what exists. Before planning anything:
 - Read key files to understand architecture and current functionality
 - Check for broken state, regressions, or half-finished work
 
-Use the changelog (if provided) to understand trajectory — why decisions were made, what approaches were tried and abandoned.
+Use the changelog (if provided) to understand trajectory — why decisions were made, what approaches were tried and abandoned. Pay special attention to **verification results** in the changelog: if the previous cycle's verification failed, prioritize fixing those issues before planning new features. Verification is a black-box test of the running application (browser or CLI) — failures mean something doesn't work from the user's perspective, even if the code builds.
 
 ### 2. Plan
 

@@ -1,13 +1,33 @@
+import type { ChildProcess } from 'node:child_process';
+import { readdir, rm, stat } from 'node:fs/promises';
+import { join } from 'node:path';
 import chalk from 'chalk';
 import { type CallbackHooks, EXIT_CODES } from '../config.js';
-import { loadAgentPrompt } from '../gates/shared.js';
-import { runClaude, runClaudeAgent, type ToolConfig } from '../infra/claude.js';
+import { loadAgentPrompt, parseVerdict } from '../gates/shared.js';
+import {
+  buildVerificationPrompt,
+  extractVerificationContext,
+  resolveToolConfig,
+} from '../gates/verify.js';
+import {
+  runClaude,
+  runClaudeAgent,
+  runClaudeVerifier,
+  type ToolConfig,
+} from '../infra/claude.js';
 import { spawnDetached } from '../infra/detach.js';
 import { runHook } from '../infra/hooks.js';
+import {
+  runStopCommand,
+  startServer,
+  stopServer,
+  waitForServer,
+} from '../infra/server.js';
 import {
   appendChangelog,
   createSession,
   extractTaskSummary,
+  extractVerificationSection,
   generateSessionSlug,
   getSessionLogPath,
   getSessionPath,
@@ -181,6 +201,7 @@ async function appendCycleToChangelog(
   sessionId: string,
   cycle: number,
   result: BuildResult,
+  verification?: { passed: boolean; mode: string; feedback: string } | null,
 ): Promise<void> {
   const content = await readSession(sessionId);
   const { completed } = extractTaskSummary(content);
@@ -192,8 +213,124 @@ async function appendCycleToChangelog(
 
   const completedLines = completed || '(no completed items recorded)';
 
-  const entry = `## Cycle ${cycle}\n${completedLines}\n${statusLine}`;
+  let entry = `## Cycle ${cycle}\n${completedLines}\n${statusLine}`;
+
+  if (verification) {
+    const verdict = verification.passed ? 'PASS' : 'FAIL';
+    entry += `\nVerification (${verification.mode}): ${verdict}`;
+    if (!verification.passed && verification.feedback) {
+      // Include a trimmed summary of what failed
+      const lines = verification.feedback.split('\n').slice(0, 20);
+      entry += `\n${lines.join('\n')}`;
+    }
+  }
+
   await appendChangelog(sessionId, entry);
+}
+
+// --- Verification (non-blocking) ---
+
+async function cleanVerificationArtifacts(cwd: string): Promise<void> {
+  try {
+    const entries = await readdir(cwd);
+    const removals: Promise<void>[] = [];
+    for (const entry of entries) {
+      const full = join(cwd, entry);
+      if (/\.(png|jpeg)$/i.test(entry)) {
+        const info = await stat(full);
+        if (info.isFile()) removals.push(rm(full));
+      }
+      if (entry === '.playwright-mcp') {
+        removals.push(rm(full, { recursive: true }));
+      }
+    }
+    if (removals.length > 0) {
+      await Promise.all(removals);
+      console.log(
+        chalk.dim(`Cleaned ${removals.length} verification artifact(s)`),
+      );
+    }
+  } catch {
+    // Non-fatal
+  }
+}
+
+/**
+ * Run black-box verification after a build cycle. Non-blocking — the result
+ * is returned as feedback for the changelog, never halts the loop.
+ * Returns null if no verification section exists (mode: none or absent).
+ */
+async function runGoalVerification(
+  sessionId: string,
+): Promise<{ passed: boolean; mode: string; feedback: string } | null> {
+  const sessionContent = await readSession(sessionId);
+  const resolved = extractVerificationSection(sessionContent);
+
+  if (!resolved) return null;
+
+  console.log(
+    chalk.magenta(
+      `\n${'─'.repeat(50)}\n  Verification (${resolved.mode})\n${'─'.repeat(50)}`,
+    ),
+  );
+
+  let serverProc: ChildProcess | undefined;
+
+  try {
+    // Start the server if needed
+    if (resolved.start) {
+      // Clean up any lingering server from the builder
+      if (resolved.stop) {
+        runStopCommand(resolved.stop, process.cwd());
+      }
+      console.log(chalk.dim(`Starting server: ${resolved.start}`));
+      serverProc = startServer(resolved.start, process.cwd());
+      const ready = await waitForServer(resolved.entry);
+      if (!ready) {
+        console.log(
+          chalk.yellow(
+            'Server did not respond in time — skipping verification',
+          ),
+        );
+        return null;
+      }
+    }
+
+    // Build prompts and run verifier
+    const context = extractVerificationContext(sessionContent);
+    const { systemPrompt, userPrompt } = await buildVerificationPrompt(
+      context,
+      resolved,
+    );
+    const toolConfig = resolveToolConfig(resolved);
+    const output = await runClaudeVerifier(
+      systemPrompt,
+      userPrompt,
+      toolConfig,
+    );
+    const passed = parseVerdict(output);
+
+    if (passed) {
+      console.log(chalk.green('  Verification PASSED'));
+    } else {
+      console.log(chalk.red('  Verification FAILED'));
+    }
+
+    return { passed, mode: resolved.mode, feedback: passed ? '' : output };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.log(chalk.yellow(`  Verification error: ${msg}`));
+    return { passed: false, mode: resolved.mode, feedback: `Error: ${msg}` };
+  } finally {
+    if (serverProc) {
+      stopServer(serverProc);
+      console.log(chalk.dim('Server stopped'));
+    }
+    if (resolved.stop) {
+      runStopCommand(resolved.stop, process.cwd());
+    }
+    await cleanVerificationArtifacts(process.cwd());
+  }
 }
 
 // --- Wrap-up ---
@@ -350,8 +487,17 @@ export async function runGoalMode(options: GoalOptions): Promise<number> {
       const result = await runGoalBuild(sessionId);
       totalIterations += result.iterations;
 
-      // Append cycle to changelog
-      await appendCycleToChangelog(sessionId, cycle, result);
+      // Run verification after successful build cycles (non-blocking)
+      let verification:
+        | { passed: boolean; mode: string; feedback: string }
+        | null
+        | undefined;
+      if (result.status === 'done') {
+        verification = await runGoalVerification(sessionId);
+      }
+
+      // Append cycle to changelog (includes verification results if any)
+      await appendCycleToChangelog(sessionId, cycle, result, verification);
 
       // Update cycle counter in frontmatter
       cycle++;
