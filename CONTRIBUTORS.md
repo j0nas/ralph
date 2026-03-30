@@ -9,10 +9,10 @@ Ralph shells out to `claude` (Claude Code CLI). If you're already running inside
 To bypass this, unset the environment variable before running:
 
 ```bash
-unset CLAUDECODE && npm run build && ralph run "your task" -m 3
+unset CLAUDECODE && pnpm run build && ralph run "your task" -m 3
 ```
 
-Always build first (`npm run build`) since ralph runs from `dist/`.
+Always build first (`pnpm run build`) since ralph runs from `dist/`.
 
 ## Useful test flags
 
@@ -32,7 +32,7 @@ Hooks write to the shell's stdout which may not be visible when running inside a
 ## Running checks
 
 ```bash
-npm run build      # TypeScript compilation
-npm test           # Vitest unit tests
-npm run lint       # Biome lint + format check
+pnpm run build      # TypeScript compilation
+pnpm test           # Vitest unit tests
+pnpm run lint       # Biome lint + format check
 ```
