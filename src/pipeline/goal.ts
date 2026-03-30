@@ -117,8 +117,9 @@ async function runGoalPlan(sessionId: string, cycle: number): Promise<void> {
 
 async function buildGoalBuilderPrompt(sessionId: string): Promise<string> {
   const sessionContent = await readSession(sessionId);
+  const sessionPath = getSessionPath(sessionId);
   const agentPrompt = await loadAgentPrompt('builder.md');
-  return `Working directory: ${process.cwd()}\n\n<session>\n${sessionContent}\n</session>\n\n${agentPrompt}`;
+  return `Working directory: ${process.cwd()}\n\nSession file: ${sessionPath}\n\n<session>\n${sessionContent}\n</session>\n\n${agentPrompt}`;
 }
 
 async function runGoalBuild(sessionId: string): Promise<BuildResult> {

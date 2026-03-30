@@ -144,7 +144,8 @@ async function buildPrompt(config: Config): Promise<string> {
     ? `\n\n<user-message>\nThe user has provided the following message when resuming this session:\n\n${config.message}\n\nTake this into account as you proceed with the next iteration.\n</user-message>`
     : '';
 
-  return `Working directory: ${process.cwd()}\n\n<session>\n${sessionContent}\n</session>\n\n${agentPrompt}${userMessageSection}`;
+  const sessionPath = getSessionPath(config.sessionId);
+  return `Working directory: ${process.cwd()}\n\nSession file: ${sessionPath}\n\n<session>\n${sessionContent}\n</session>\n\n${agentPrompt}${userMessageSection}`;
 }
 
 /**
