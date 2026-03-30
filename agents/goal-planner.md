@@ -50,6 +50,19 @@ Design the most impactful next batch of work toward the goal. Think ambitiously 
 - [ ] [Step 3 — specific and actionable]
 ...
 
+## Verification
+
+[How should a black-box tester with no source code access verify the work?]
+- Web application or UI → mode: browser, entry: <URL>, start: <command to start the server>
+- CLI tool or script → mode: cli, entry: <command name or prefix>
+- No meaningful black-box test possible → mode: none
+
+Example:
+mode: browser
+start: npm run dev
+entry: http://localhost:5173
+stop: kill the dev processes
+
 ## Notes
 
 [Key decisions, known issues, or context for the builder]
@@ -81,6 +94,12 @@ Set up Phaser.js project with TypeScript, Vite dev server, and a basic game canv
 - [ ] Implement a simple game mechanic (e.g., tag, collect coins, or dodge obstacles)
 - [ ] Add score tracking and a win/lose condition
 - [ ] Polish: add sound effects, visual feedback, and a game-over screen
+
+## Verification
+
+mode: browser
+start: npm run dev
+entry: http://localhost:5173
 
 ## Notes
 
