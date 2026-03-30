@@ -12,7 +12,7 @@
     "agents"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist && tsc",
     "dev": "tsc --watch",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",

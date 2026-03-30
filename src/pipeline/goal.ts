@@ -106,10 +106,15 @@ async function runGoalPlan(sessionId: string, cycle: number): Promise<void> {
 
   await runClaudeAgent(systemPrompt, userPrompt, toolConfig, 'PLAN');
 
-  // Ensure stage is running after planning — but don't overwrite a stop signal
+  // The planner may have rewritten the session file (including frontmatter)
+  // via the Write tool, stripping goal-critical fields. Always re-assert them.
   const postPlanFm = parseFrontMatter(await readSession(sessionId));
   if (postPlanFm?.stage !== 'stopping') {
-    await updateSessionFrontMatter(sessionId, { stage: 'running' });
+    await updateSessionFrontMatter(sessionId, {
+      stage: 'running',
+      mode: 'goal',
+      cycle,
+    });
   }
 }
 
@@ -401,7 +406,11 @@ export async function runGoalMode(options: GoalOptions): Promise<number> {
         );
         return EXIT_CODES.SUCCESS;
       }
-      await updateSessionFrontMatter(sessionId, { stage: 'running' });
+      await updateSessionFrontMatter(sessionId, {
+        stage: 'running',
+        mode: 'goal',
+        cycle,
+      });
 
       if (result.status === 'blocked') {
         console.log(
