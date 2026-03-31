@@ -1,4 +1,5 @@
 import type { ChildProcess } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { readdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import chalk from 'chalk';
@@ -96,6 +97,40 @@ async function fireHook(
   });
 }
 
+/**
+ * Auto-commit after each builder iteration. Uses the Current Focus from
+ * the session file as the commit message. Silently skips if:
+ * - the working directory is not a git repo
+ * - there are no changes to commit
+ */
+function autoCommit(sessionId: string, currentFocus: string): void {
+  const cwd = process.cwd();
+  try {
+    // Check if we're in a git repo
+    execSync('git rev-parse --git-dir', { cwd, stdio: 'ignore' });
+
+    // Check if there are changes
+    const status = execSync('git status --porcelain', {
+      cwd,
+      encoding: 'utf-8',
+    }).trim();
+    if (!status) return;
+
+    // Stage all and commit
+    const message = currentFocus
+      ? `goal(${sessionId}): ${currentFocus}`
+      : `goal(${sessionId}): iteration progress`;
+    execSync('git add -A', { cwd, stdio: 'ignore' });
+    execSync(`git commit -m ${JSON.stringify(message)} --no-verify`, {
+      cwd,
+      stdio: 'ignore',
+    });
+    console.log(chalk.dim(`Committed: ${message.slice(0, 80)}`));
+  } catch {
+    // Not a git repo, or commit failed — non-fatal
+  }
+}
+
 // --- Goal planner ---
 
 async function runGoalPlan(sessionId: string, cycle: number): Promise<void> {
@@ -178,6 +213,12 @@ async function runGoalBuild(sessionId: string): Promise<BuildResult> {
       // No explicit stop command — kill processes matching the start command
       runStopCommand(`pkill -f "${iterVerify.start}"`, process.cwd());
     }
+
+    // Auto-commit after each iteration so progress is saved
+    const focusMatch = iterContent.match(
+      /## Current Focus\n([\s\S]*?)(?=\n## |$)/,
+    );
+    autoCommit(sessionId, focusMatch?.[1]?.trim() ?? '');
 
     // Increment iteration count in front matter
     const currentContent = await readSession(sessionId);
