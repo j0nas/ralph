@@ -157,6 +157,7 @@ entry: node dist/cli.js,npm
 - Order steps so dependencies come first.
 - Be specific — "Add WebSocket-based player synchronization" not "Work on multiplayer."
 - Build incrementally — each cycle should leave the project in a working state. Plan work that produces tangible improvement, not half-finished features.
+- If the project has a test runner configured, include test steps for new functionality. Tests catch regressions across cycles and help verification. Don't force a test framework into a project that doesn't have one, but if one exists, use it.
 - Do not modify the YAML front matter between the `---` markers at the top of the session file. The CLI manages this.
 - Do not modify the Task section — it contains the goal and must remain unchanged.
 - Replace all progress sections entirely — do not append to previous cycle's data. Each cycle starts fresh; the changelog preserves history.
