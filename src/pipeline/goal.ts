@@ -1,5 +1,4 @@
 import type { ChildProcess } from 'node:child_process';
-import { execSync } from 'node:child_process';
 import { readdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import chalk from 'chalk';
@@ -97,40 +96,6 @@ async function fireHook(
   });
 }
 
-/**
- * Auto-commit after each builder iteration. Uses the Current Focus from
- * the session file as the commit message. Silently skips if:
- * - the working directory is not a git repo
- * - there are no changes to commit
- */
-function autoCommit(sessionId: string, currentFocus: string): void {
-  const cwd = process.cwd();
-  try {
-    // Check if we're in a git repo
-    execSync('git rev-parse --git-dir', { cwd, stdio: 'ignore' });
-
-    // Check if there are changes
-    const status = execSync('git status --porcelain', {
-      cwd,
-      encoding: 'utf-8',
-    }).trim();
-    if (!status) return;
-
-    // Stage all and commit
-    const message = currentFocus
-      ? `goal(${sessionId}): ${currentFocus}`
-      : `goal(${sessionId}): iteration progress`;
-    execSync('git add -A', { cwd, stdio: 'ignore' });
-    execSync(`git commit -m ${JSON.stringify(message)} --no-verify`, {
-      cwd,
-      stdio: 'ignore',
-    });
-    console.log(chalk.dim(`Committed: ${message.slice(0, 80)}`));
-  } catch {
-    // Not a git repo, or commit failed — non-fatal
-  }
-}
-
 // --- Goal planner ---
 
 async function runGoalPlan(sessionId: string, cycle: number): Promise<void> {
@@ -179,7 +144,15 @@ async function buildGoalBuilderPrompt(sessionId: string): Promise<string> {
   const sessionContent = await readSession(sessionId);
   const sessionPath = getSessionPath(sessionId);
   const agentPrompt = await loadAgentPrompt('builder.md');
-  return `Working directory: ${process.cwd()}\n\nSession file: ${sessionPath}\n\n<session>\n${sessionContent}\n</session>\n\n${agentPrompt}`;
+
+  const goalAddendum = `\n\n<goal-mode>
+This is a goal mode session — an autonomous, long-running loop. Two things differ from the regular workflow:
+
+1. **Commit your work** before exiting. Stage and commit all changes with a short descriptive message. This saves progress so nothing is lost between iterations.
+2. **Stop any servers you started** before exiting. In goal mode, there is no external server manager — if you leave a server running, the next iteration will fail because the port is occupied.
+</goal-mode>`;
+
+  return `Working directory: ${process.cwd()}\n\nSession file: ${sessionPath}\n\n<session>\n${sessionContent}\n</session>\n\n${agentPrompt}${goalAddendum}`;
 }
 
 async function runGoalBuild(sessionId: string): Promise<BuildResult> {
@@ -201,24 +174,6 @@ async function runGoalBuild(sessionId: string): Promise<BuildResult> {
     await runClaude(await buildGoalBuilderPrompt(sessionId));
     const iterationDuration = formatDuration(Date.now() - iterationStart);
     console.log(chalk.dim(`Iteration completed in ${iterationDuration}`));
-
-    // Clean up any servers the builder left running. The builder is told
-    // to leave servers up (for verification in the regular pipeline), but
-    // in goal mode they accumulate across iterations and block ports.
-    const iterContent = await readSession(sessionId);
-    const iterVerify = extractVerificationSection(iterContent);
-    if (iterVerify?.stop) {
-      runStopCommand(iterVerify.stop, process.cwd());
-    } else if (iterVerify?.start) {
-      // No explicit stop command — kill processes matching the start command
-      runStopCommand(`pkill -f "${iterVerify.start}"`, process.cwd());
-    }
-
-    // Auto-commit after each iteration so progress is saved
-    const focusMatch = iterContent.match(
-      /## Current Focus\n([\s\S]*?)(?=\n## |$)/,
-    );
-    autoCommit(sessionId, focusMatch?.[1]?.trim() ?? '');
 
     // Increment iteration count in front matter
     const currentContent = await readSession(sessionId);
