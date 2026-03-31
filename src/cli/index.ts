@@ -18,7 +18,7 @@ const DEFAULT_REVIEW: ReviewConfig = { trigger: 'done', maxAttempts: 5 };
 program
   .name('ralph')
   .description('Claude Code in a loop with fresh context per iteration')
-  .version(`${VERSION} (${GIT_SHA})`);
+  .version(`${VERSION} (${GIT_SHA})`, '-v, --version');
 
 function addHookOptions(cmd: Command): Command {
   return cmd
