@@ -12,7 +12,7 @@
     "agents"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc",
+    "build": "rm -rf dist && node scripts/version.js && tsc",
     "dev": "tsc --watch",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",

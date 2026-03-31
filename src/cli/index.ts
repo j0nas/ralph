@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { execSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { type Command, Option, program } from 'commander';
 import type { CallbackHooks, ReviewConfig, VerifyConfig } from '../config.js';
+import { GIT_SHA, VERSION } from '../generated/version.js';
 import { ensureClaudeInstalled, exists } from '../infra/fs.js';
 import { runFlow, runNonInteractive } from '../pipeline/flow.js';
 import { runGoalMode } from '../pipeline/goal.js';
@@ -15,22 +15,10 @@ import { runStop } from './stop.js';
 const DEFAULT_VERIFY: VerifyConfig = { trigger: 'done', maxAttempts: 5 };
 const DEFAULT_REVIEW: ReviewConfig = { trigger: 'done', maxAttempts: 5 };
 
-function getVersion(): string {
-  try {
-    const sha = execSync('git rev-parse --short HEAD', {
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-    return `1.0.0 (${sha})`;
-  } catch {
-    return '1.0.0';
-  }
-}
-
 program
   .name('ralph')
   .description('Claude Code in a loop with fresh context per iteration')
-  .version(getVersion());
+  .version(`${VERSION} (${GIT_SHA})`);
 
 function addHookOptions(cmd: Command): Command {
   return cmd

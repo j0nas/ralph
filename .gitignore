@@ -5,3 +5,4 @@ dist/
 progress.md
 PROMPT.md
 .playwright-mcp
+src/generated/
