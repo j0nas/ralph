@@ -149,7 +149,7 @@ async function buildGoalBuilderPrompt(sessionId: string): Promise<string> {
 This is a goal mode session — an autonomous, long-running loop. Two things differ from the regular workflow:
 
 1. **Commit your work** before exiting. Stage and commit all changes with a short descriptive message. This saves progress so nothing is lost between iterations.
-2. **Stop any servers you started** before exiting. In goal mode, there is no external server manager — if you leave a server running, the next iteration will fail because the port is occupied.
+2. **Check if a dev server is already running** before starting one. A previous iteration may have left it up. If the port is already in use, reuse the existing server instead of starting a new one.
 </goal-mode>`;
 
   return `Working directory: ${process.cwd()}\n\nSession file: ${sessionPath}\n\n<session>\n${sessionContent}\n</session>\n\n${agentPrompt}${goalAddendum}`;
